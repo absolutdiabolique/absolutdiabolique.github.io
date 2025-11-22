@@ -54,14 +54,14 @@
     </div>
 
     <label>Starting configuration (JSON)</label>
-    <textarea id="json" rows="14">{
-  "objects": [
-    { "type":"star", "x":400, "y":300, "vx":0, "vy":0, "mass":8000, "radius":8 },
-    { "type":"star", "x":700, "y":300, "vx":0, "vy":-0.5, "mass":4000, "radius":6 },
-    { "type":"disc", "x":520, "y":320, "vx":0.0, "vy":0, "radius":140, "innerRadius":30 },
-    { "type":"rect", "x":200, "y":420, "vx":0, "vy":0, "width":160, "height":80 }
-  ]
-}</textarea>
+    <textarea id="json" rows="14">
+    {
+      "objects": [
+        { "type":"star", "x":400, "y":300, "vx":0, "vy":0, "mass":8000, "radius":8 },
+        { "type":"disc", "x":520, "y":320, "vx":0.0, "vy":0, "radius":140, "innerRadius":30 },
+      ]
+    }
+    </textarea>
 
     <div style="margin-top:8px" class="row">
       <button id="apply">Apply JSON</button>
