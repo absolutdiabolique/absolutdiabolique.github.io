@@ -128,8 +128,7 @@ function uniformPointInAnnulus(r1,r2){
 }
 function uniformPointInRect(w,h){
   return [randRange(-w/2,w/2), randRange(-h/2,h/2)];
-}
-
+}// deterministic sunflower pattern for discs and grid for rects
 function seedFromConfig(cfg){
   stars=[]; discs=[]; rects=[]; particles=[];
   const obj = cfg.objects || [];
@@ -139,11 +138,10 @@ function seedFromConfig(cfg){
     if(o.type==='rect') rects.push(new Rect(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0, +o.width||100, +o.height||60));
   }
 
-  // distribute particles equally among regions
+  // collect regions
   const regions = [];
   for(const d of discs) regions.push({type:'disc',obj:d});
   for(const r of rects) regions.push({type:'rect',obj:r});
-  // if no regions provided, create a big fallback
   if(regions.length===0){
     discs.push(new Disc(W/2,H/2,0,0, Math.min(W,H)*0.4,0));
     regions.push({type:'disc',obj:discs[discs.length-1]});
@@ -152,25 +150,54 @@ function seedFromConfig(cfg){
   const total = Math.max(1, parseInt(cntInp.value,10)||1000);
   const per = Math.floor(total / regions.length);
   let created = 0;
+
+  const GOLDEN_ANGLE = 2.399963229728653; // radians (~137.5 deg)
+
   for(let i=0;i<regions.length;i++){
-    const r = regions[i];
+    const rgn = regions[i];
     const n = (i===regions.length-1)? total - created : per;
-    const o = r.obj;
-    if(r.type==='disc'){
+    const o = rgn.obj;
+
+    if(rgn.type==='disc'){
+      // sunflower / Vogel's method -> deterministic circular distribution
+      const R = +o.radius;
+      const r0 = +o.innerRadius || 0;
       for(let k=0;k<n;k++){
-        const [dx,dy] = o.innerRadius>0 ? uniformPointInAnnulus(o.innerRadius,o.radius) : uniformPointInCircle(o.radius);
-        particles.push({x:o.x+dx,y:o.y+dy,vx:o.vx,vy:o.vy,ax:0,ay:0});
+        // fractional index in [0,1)
+        const f = (k + 0.5) / n;
+        // radial distance — sqrt gives even area spacing
+        const radial = Math.sqrt(f);
+        const r = r0 + radial * (R - r0);
+        const theta = k * GOLDEN_ANGLE;
+        const dx = Math.cos(theta) * r;
+        const dy = Math.sin(theta) * r;
+        particles.push({x: o.x + dx, y: o.y + dy, vx: o.vx, vy: o.vy, ax:0, ay:0});
       }
     }else{
+      // grid layout inside rect: deterministic grid placement of n points
+      const Wrect = +o.w;
+      const Hrect = +o.h;
+      // choose grid shape preserving aspect ratio
+      const aspect = Math.max(1e-6, Wrect / Hrect);
+      let cols = Math.ceil(Math.sqrt(n * aspect));
+      let rows = Math.ceil(n / cols);
+      // ensure enough cells
+      while(cols * (rows-1) >= n) rows--;
+      const cellW = Wrect / cols;
+      const cellH = Hrect / rows;
       for(let k=0;k<n;k++){
-        const [dx,dy] = uniformPointInRect(o.w,o.h);
-        particles.push({x:o.x+dx,y:o.y+dy,vx:o.vx,vy:o.vy,ax:0,ay:0});
+        const col = k % cols;
+        const row = Math.floor(k / cols);
+        const dx = -Wrect/2 + (col + 0.5) * cellW;
+        const dy = -Hrect/2 + (row + 0.5) * cellH;
+        particles.push({x: o.x + dx, y: o.y + dy, vx: o.vx, vy: o.vy, ax:0, ay:0});
       }
     }
+
     created += n;
   }
-
 }
+
 
 // Physics
 function stepPhysics(dt){
