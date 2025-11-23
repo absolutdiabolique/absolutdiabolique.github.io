@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>DustSim — GitHub Pages</title>
+  <title>DustSim</title>
   <style>
     :root{--ui-w:340px}
     html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
@@ -270,14 +270,12 @@ function render(now){
     if(stepOnce) { stepOnce=false; paused=true; }
   }
 
-  // draw
   ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,W,H);
 
-  // draw particles as tiny rects or pixels
-  const image = ctx.createImageData(W,H);
-  // fill with black
-  // We'll draw particles directly as circles for better color variation
-  ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+  // pixel/world scaling
+  const s = W / (1000 * view.scale);   // px per world unit
 
   // draw particles
   const amax = parseFloat(amaxInp.value)||2000;
@@ -285,29 +283,77 @@ function render(now){
     const ax = p.ax||0, ay = p.ay||0;
     const a = Math.sqrt(ax*ax + ay*ay);
     ctx.fillStyle = accelToColor(a, amax);
-    // draw 1px (use fillRect to be fast)
-    const px = Math.round(p.x - view.x);
-    const py = Math.round(p.y - view.y);
-    if(px<0 || py<0 || px>=W || py>=H) continue;
-    ctx.fillRect(px,py,1,1);
+
+    const px = (p.x - view.x) * s + W/2;
+    const py = (p.y - view.y) * s + H/2;
+
+    const ix = px|0, iy = py|0;
+    if(ix<0 || iy<0 || ix>=W || iy>=H) continue;
+
+    ctx.fillRect(ix, iy, 1, 1);
   }
 
   // draw stars
-  for(const s of stars){
-    const sx = s.x - view.x, sy = s.y - view.y;
-    ctx.beginPath(); ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.9; ctx.arc(sx,sy, Math.max(1,s.radius), 0, Math.PI*2); ctx.fill(); ctx.globalAlpha = 1.0;
-    // mass ring
-    ctx.beginPath(); ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1; ctx.arc(sx,sy,s.radius*4,0,Math.PI*2); ctx.stroke();
+  for(const sObj of stars){
+    const sx = (sObj.x - view.x) * s + W/2;
+    const sy = (sObj.y - view.y) * s + H/2;
+
+    const sr = Math.max(1, sObj.radius * s);
+
+    ctx.beginPath();
+    ctx.fillStyle = '#fff';
+    ctx.globalAlpha = 0.9;
+    ctx.arc(sx, sy, sr, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+
+    // mass ring scaled
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.arc(sx, sy, sObj.radius * 4 * s, 0, Math.PI*2);
+    ctx.stroke();
   }
 
-  // draw regions outlines
-  ctx.strokeStyle = 'rgba(120,180,255,0.12)'; ctx.lineWidth=1;
-  for(const d of discs){ ctx.beginPath(); ctx.arc(d.x-view.x,d.y-view.y,d.radius,0,Math.PI*2); ctx.stroke(); if(d.innerRadius>0){ ctx.beginPath(); ctx.arc(d.x-view.x,d.y-view.y,d.innerRadius,0,Math.PI*2); ctx.stroke(); } }
-  for(const r of rects){ ctx.beginPath(); ctx.rect(r.x - r.w/2 - view.x, r.y - r.h/2 - view.y, r.w, r.h); ctx.stroke(); }
+  // draw discs
+  ctx.strokeStyle = 'rgba(120,180,255,0.12)';
+  ctx.lineWidth = 1;
+
+  for(const d of discs){
+    const dx = (d.x - view.x) * s + W/2;
+    const dy = (d.y - view.y) * s + H/2;
+
+    ctx.beginPath();
+    ctx.arc(dx, dy, d.radius * s, 0, Math.PI*2);
+    ctx.stroke();
+
+    if(d.innerRadius > 0){
+      ctx.beginPath();
+      ctx.arc(dx, dy, d.innerRadius * s, 0, Math.PI*2);
+      ctx.stroke();
+    }
+  }
+
+  // draw rects
+  for(const r of rects){
+    const cx = (r.x - view.x) * s + W/2;
+    const cy = (r.y - view.y) * s + H/2;
+
+    const wScaled = r.w * s;
+    const hScaled = r.h * s;
+
+    ctx.beginPath();
+    ctx.rect(cx - wScaled/2, cy - hScaled/2, wScaled, hScaled);
+    ctx.stroke();
+  }
 
   // info
   frames++; accumTime += rawdt;
-  if(accumTime>0.5){ infoDiv.textContent = `particles: ${particles.length}\nstars: ${stars.length}  dt: ${targetDt}  G: ${Ginp.value}`; frames=0; accumTime=0; }
+  if(accumTime>0.5){
+    infoDiv.textContent =
+      `particles: ${particles.length}\nstars: ${stars.length}  dt: ${targetDt}  G: ${Ginp.value}`;
+    frames=0; accumTime=0;
+  }
 
   requestAnimationFrame(render);
 }
@@ -326,10 +372,19 @@ requestAnimationFrame(render);
 
 // Optional: basic mouse pan & zoom
 let dragging=false, lastMouse=null;
-canvas.addEventListener('mousedown',(e)=>{ dragging=true; lastMouse=[e.clientX,e.clientY]; });
-window.addEventListener('mouseup',()=>{ dragging=false; lastMouse=null; });
-window.addEventListener('mousemove',(e)=>{ if(!dragging) return; const dx = e.clientX - lastMouse[0]; const dy = e.clientY - lastMouse[1]; view.x -= dx; view.y -= dy; lastMouse=[e.clientX,e.clientY]; });
-canvas.addEventListener('wheel',(e)=>{ e.preventDefault(); const s = Math.exp(-e.deltaY*0.001); view.scale *= s; /*not used*/ });
+canvas.addEventListener('mousedown',(e)=>{
+  dragging=true; lastMouse=[e.clientX,e.clientY]; 
+});
+window.addEventListener('mouseup',()=>{
+  dragging=false; lastMouse=null;
+});
+window.addEventListener('mousemove',(e)=>{
+  if(!dragging) return; const dx = e.clientX - lastMouse[0]; const dy = e.clientY - lastMouse[1]; view.x -= dx; view.y -= dy; lastMouse=[e.clientX,e.clientY];
+});
+canvas.addEventListener('wheel',(e)=>{
+  e.preventDefault(); const s = Math.exp(-e.deltaY*0.001);
+  view.scale *= s;
+});
 
 </script>
 </body>
