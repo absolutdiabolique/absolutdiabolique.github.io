@@ -52,6 +52,13 @@
       </div>
     </div>
 
+    <!-- NEW COLOR MODE SWITCH -->
+    <label>Color Mode</label>
+    <select id="colorMode">
+      <option value="accel">Color: Acceleration Magnitude</option>
+      <option value="direction">Color: Acceleration Direction, Brightness: Acceleration Magnitude</option>
+    </select>
+
     <label>Starting configuration (JSON)</label>
     <textarea id="json" rows="14">
     {
@@ -75,7 +82,6 @@
 
     <label>Info</label>
     <div id="info" style="font-family:monospace;font-size:13px;line-height:1.3"></div>
-    <footer>Export this single file to GitHub Pages as index.html</footer>
   </div>
 </div>
 
@@ -91,6 +97,7 @@ const Ginp = document.getElementById('G');
 const dtInp = document.getElementById('dt');
 const densityInp = document.getElementById('density');
 const amaxInp = document.getElementById('amax');
+const colorModeSel = document.getElementById('colorMode');
 const jsonArea = document.getElementById('json');
 const applyBtn = document.getElementById('apply');
 const resetBtn = document.getElementById('reset');
@@ -108,8 +115,7 @@ class Star{constructor(x,y,vx,vy,mass,radius){this.x=x;this.y=y;this.vx=vx;this.
 class Disc{constructor(x,y,vx,vy,radius,innerRadius){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.radius=radius;this.innerRadius=innerRadius||0;}}
 class Rect{constructor(x,y,vx,vy,w,h){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.w=w;this.h=h;}}
 
-let stars=[], discs=[], rects=[];
-let particles=[]; // {x,y,vx,vy,ax,ay}
+let stars=[], discs=[], rects=[], particles=[];
 
 function randRange(a,b){return a + Math.random()*(b-a)}
 function uniformPointInCircle(r){
@@ -201,7 +207,6 @@ function stepPhysics(dt){
   const G = parseFloat(Ginp.value) || 1000;
   const amax = parseFloat(amaxInp.value) || 2000;
 
-  // star-star gravity
   for(let i=0;i<stars.length;i++){
     const si=stars[i];
     let ax=0, ay=0;
@@ -221,7 +226,6 @@ function stepPhysics(dt){
 
   for(const s of stars){ s.x+=s.vx*dt; s.y+=s.vy*dt; }
 
-  // particles → stars
   for(const p of particles){
     let ax=0, ay=0;
     for(const s of stars){
@@ -243,12 +247,21 @@ function stepPhysics(dt){
   }
 }
 
-function accelToColor(a,amax){
+// COLOR FUNCTIONS
+function colorAccelMagnitude(a, amax){
   const t=Math.max(0,Math.min(1,a/amax));
   const hue=240 - 240*t;
   const sat=100 - 5*t;
   const light=50 + 10*t;
   return `hsl(${hue},${sat}%,${light}%)`;
+}
+
+function colorDirection(ax, ay, a, amax){
+  let ang = Math.atan2(ay, ax);
+  let hue = (ang * 180/Math.PI + 360) % 360;
+  let t = Math.max(0, Math.min(1, a/amax));
+  let light = 30 + 40*t;
+  return `hsl(${hue},100%,${light}%)`;
 }
 
 let lastTime = performance.now();
@@ -271,10 +284,16 @@ function render(now){
   const s = W/(1000*view.scale);
 
   const amax=parseFloat(amaxInp.value)||2000;
+  const colorMode = colorModeSel.value;
 
   for(const p of particles){
     const a=Math.sqrt(p.ax*p.ax + p.ay*p.ay);
-    ctx.fillStyle = accelToColor(a,amax);
+
+    if(colorMode === "accel"){
+      ctx.fillStyle = colorAccelMagnitude(a, amax);
+    } else {
+      ctx.fillStyle = colorDirection(p.ax, p.ay, a, amax);
+    }
 
     const px=(p.x - view.x)*s + W/2;
     const py=(p.y - view.y)*s + H/2;
@@ -335,7 +354,6 @@ applyBtn.addEventListener('click',()=>{
   seedFromConfig(cfg);
 });
 
-// initial seed
 try{ seedFromConfig(JSON.parse(jsonArea.value)); }catch(e){console.error(e);}
 
 requestAnimationFrame(render);
