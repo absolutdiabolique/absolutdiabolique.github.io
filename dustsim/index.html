@@ -268,8 +268,24 @@ let lastTime = performance.now();
 let view={x:0,y:0,scale:1};
 let frames=0, accumTime=0;
 
+// NEW:
+let fps = 0;
+let fpsAccum = 0;
+let fpsFrames = 0;
+
 function render(now){
-  const rawdt=(now - lastTime)/1000; lastTime=now;
+  const rawdt=(now - lastTime)/1000; 
+  lastTime=now;
+
+  // --- FPS accumulation ---
+  fpsFrames++;
+  fpsAccum += rawdt;
+  if (fpsAccum >= 0.25) {
+    fps = fpsFrames / fpsAccum;
+    fpsFrames = 0;
+    fpsAccum = 0;
+  }
+
   const targetDt=parseFloat(dtInp.value)||0.016;
 
   if(!paused || stepOnce){
@@ -282,7 +298,6 @@ function render(now){
   ctx.fillRect(0,0,W,H);
 
   const s = W/(1000*view.scale);
-
   const amax=parseFloat(amaxInp.value)||2000;
   const colorMode = colorModeSel.value;
 
@@ -307,12 +322,17 @@ function render(now){
     const sy=(sObj.y - view.y)*s + H/2;
     const sr=Math.max(1, sObj.radius*s);
 
-    ctx.beginPath(); ctx.fillStyle='#fff'; ctx.globalAlpha=0.9;
-    ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fill();
+    ctx.beginPath(); 
+    ctx.fillStyle='#fff'; 
+    ctx.globalAlpha=0.9;
+    ctx.arc(sx,sy,sr,0,Math.PI*2); 
+    ctx.fill();
     ctx.globalAlpha=1;
 
-    ctx.beginPath(); ctx.strokeStyle='rgba(255,255,255,0.08)';
-    ctx.arc(sx,sy,sObj.radius*4*s,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); 
+    ctx.strokeStyle='rgba(255,255,255,0.08)';
+    ctx.arc(sx,sy,sObj.radius*4*s,0,Math.PI*2); 
+    ctx.stroke();
   }
 
   ctx.strokeStyle='rgba(120,180,255,0.12)';
@@ -321,9 +341,13 @@ function render(now){
   for(const d of discs){
     const dx=(d.x - view.x)*s + W/2;
     const dy=(d.y - view.y)*s + H/2;
-    ctx.beginPath(); ctx.arc(dx,dy,d.radius*s,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); 
+    ctx.arc(dx,dy,d.radius*s,0,Math.PI*2); 
+    ctx.stroke();
     if(d.innerRadius>0){
-      ctx.beginPath(); ctx.arc(dx,dy,d.innerRadius*s,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); 
+      ctx.arc(dx,dy,d.innerRadius*s,0,Math.PI*2); 
+      ctx.stroke();
     }
   }
 
@@ -337,15 +361,42 @@ function render(now){
     ctx.stroke();
   }
 
-  frames++; accumTime+=rawdt;
+  frames++; 
+  accumTime+=rawdt;
   if(accumTime>0.5){
     infoDiv.textContent =
       `particles: ${particles.length}\nstars: ${stars.length}  dt: ${targetDt}  G: ${Ginp.value}`;
-    frames=0; accumTime=0;
+    frames=0; 
+    accumTime=0;
   }
+
+  // --------------------------
+  // OVERLAY: FPS + View Bounds
+  // --------------------------
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0); // screen space
+  ctx.fillStyle = "white";
+  ctx.font = "14px monospace";
+  ctx.textBaseline = "top";
+
+  // Calculate world bounds displayed on screen
+  const left   = (0 - W/2)/s + view.x;
+  const right  = (W - W/2)/s + view.x;
+  const top    = (0 - H/2)/s + view.y;
+  const bottom = (H - H/2)/s + view.y;
+
+  ctx.fillText(`FPS: ${fps.toFixed(1)}`, 10, 10);
+  ctx.fillText(
+    `x: ${left.toFixed(0)}, ${right.toFixed(0)};  y: ${top.toFixed(0)}, ${bottom.toFixed(0)}`,
+    10, 
+    28
+  );
+
+  ctx.restore();
 
   requestAnimationFrame(render);
 }
+
 
 applyBtn.addEventListener('click',()=>{
   let cfg;
