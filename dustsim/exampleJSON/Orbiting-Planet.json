@@ -1,0 +1,22 @@
+{
+  "objects": [
+    {
+      "type": "star",
+      "x": 0,
+      "y": 0,
+      "vx": 0,
+      "vy": 0,
+      "mass": 8000,
+      "radius": 12
+    },
+    {
+      "type": "star",
+      "x": 200,
+      "y": 0,
+      "vx": 0,
+      "vy": 200,
+      "mass": 10,
+      "radius": 3
+    }
+  ]
+}
