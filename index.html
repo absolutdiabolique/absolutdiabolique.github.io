@@ -3,63 +3,74 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DustSim</title>
+  <title>Absolutely Diabolical</title>
+
   <style>
     body {
       margin: 0;
-      padding: 0;
+      padding: 40px;
       font-family: system-ui, sans-serif;
       background: #0f0f16;
-      color: #e5e5f0;
       display: flex;
       justify-content: center;
     }
-    .container {
-      max-width: 900px;
-      padding: 40px 20px;
+
+    .card {
+      width: 300px;
+      background: #1a1b27;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      color: #d8d8e6;
     }
-    a {
-      color: #8fb0ff;
-      text-decoration: none;
-      font-weight: 600;
-    }
-    .preview {
+
+    .card img {
       width: 100%;
-      border-radius: 12px;
-      margin-bottom: 24px;
-      box-shadow: 0 0 16px rgba(0,0,0,0.4);
+      display: block;
     }
-    h1 {
-      margin-bottom: 10px;
+
+    .title {
+      background: #2a2d3f;
+      padding: 10px 14px;
+      font-size: 18px;
+      font-weight: 600;
+      border-bottom: 1px solid #383c57;
     }
-    p {
-      margin-bottom: 30px;
-      line-height: 1.6;
-      max-width: 650px;
+
+    .desc {
+      padding: 14px;
+      font-size: 14px;
+      line-height: 1.4;
+      height: 90px;
     }
-    .link-btn {
-      display: inline-block;
-      padding: 10px 18px;
-      background: #1b1e2d;
-      border-radius: 8px;
-      box-shadow: inset 0 0 0 1px #2a2d3f;
-      margin-top: 10px;
+
+    .link {
+      display: block;
+      padding: 12px 14px;
+      font-weight: 600;
+      color: #aab7ff;
+      border-top: 1px solid #2c2f44;
+      text-decoration: none;
+      font-size: 15px;
     }
-    .link-btn:hover {
-      background: #24283a;
+
+    .link:hover {
+      background: #26293d;
     }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <img src="/images/dustsim.png" alt="DustSim preview" class="preview">
+  <div class="card">
+    <img src="/images/dustsim.png" alt="DustSim Preview">
 
-    <h1>DustSim</h1>
-    <p>
+    <div class="title">DustSim</div>
+
+    <div class="desc">
       Simulate dust with stars, discs, and rectangles.
-    </p>
+    </div>
 
-    <a href="dustsim/" class="link-btn">Launch</a>
+    <a class="link" href="dustsim/">Launch</a>
   </div>
 </body>
 </html>
