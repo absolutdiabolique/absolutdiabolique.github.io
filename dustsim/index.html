@@ -43,8 +43,8 @@
     <label>Particles</label>
     <div class="row">
       <div>
-        <label>Total Particle Count</label>
-        <input id="count" type="number" value="3000">
+        <label>Density</label>
+        <input id="density" type="number" step="0.01" value="0.5">
       </div>
       <div>
         <label>Max accel clamp</label>
@@ -89,7 +89,7 @@ window.addEventListener('resize', ()=>{ W=canvas.width=innerWidth - 340; H=canva
 // UI elements
 const Ginp = document.getElementById('G');
 const dtInp = document.getElementById('dt');
-const cntInp = document.getElementById('count');
+const densityInp = document.getElementById('density');
 const amaxInp = document.getElementById('amax');
 const jsonArea = document.getElementById('json');
 const applyBtn = document.getElementById('apply');
@@ -112,242 +112,213 @@ let stars=[], discs=[], rects=[];
 let particles=[]; // {x,y,vx,vy,ax,ay}
 
 function randRange(a,b){return a + Math.random()*(b-a)}
-function uniformPointInCircle(r){ // returns [x,y]
+function uniformPointInCircle(r){
   const t = 2*Math.PI*Math.random();
   const u = Math.random()+Math.random();
-  let rr = u>1?2-u:u; // approximate sqrt distribution for uniform
+  let rr = u>1?2-u:u;
   rr *= r;
   return [Math.cos(t)*rr, Math.sin(t)*rr];
 }
 function uniformPointInAnnulus(r1,r2){
   const t = 2*Math.PI*Math.random();
-  // generate radius with probability proportional to r
   const r = Math.sqrt(Math.random()*(r2*r2 - r1*r1) + r1*r1);
   return [Math.cos(t)*r, Math.sin(t)*r];
 }
-function uniformPointInRect(w,h){
-  return [randRange(-w/2,w/2), randRange(-h/2,h/2)];
-}// deterministic sunflower pattern for discs and grid for rects
+
+// sunflower + grid pattern seeding
 function seedFromConfig(cfg){
   stars=[]; discs=[]; rects=[]; particles=[];
   const obj = cfg.objects || [];
   for(const o of obj){
-    if(o.type==='star') stars.push(new Star(+o.x||0,+o.y||0, +o.vx||0, +o.vy||0, +o.mass||1000, +o.radius||6));
-    if(o.type==='disc') discs.push(new Disc(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0, +o.radius||100, +o.innerRadius||0));
-    if(o.type==='rect') rects.push(new Rect(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0, +o.width||100, +o.height||60));
+    if(o.type==='star') stars.push(new Star(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0,+o.mass||1000,+o.radius||6));
+    if(o.type==='disc') discs.push(new Disc(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0,+o.radius||100,+o.innerRadius||0));
+    if(o.type==='rect') rects.push(new Rect(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0,+o.width||100,+o.height||60));
   }
 
-  // collect regions
-  const regions = [];
+  const regions=[];
   for(const d of discs) regions.push({type:'disc',obj:d});
   for(const r of rects) regions.push({type:'rect',obj:r});
   if(regions.length===0){
-    discs.push(new Disc(W/2,H/2,0,0, Math.min(W,H)*0.4,0));
+    discs.push(new Disc(W/2,H/2,0,0,Math.min(W,H)*0.4,0));
     regions.push({type:'disc',obj:discs[discs.length-1]});
   }
 
-  const total = Math.max(1, parseInt(cntInp.value,10)||1000);
-  const per = Math.floor(total / regions.length);
-  let created = 0;
+  const density = Math.max(0, parseFloat(densityInp.value) || 0.1);
+  const GOLDEN_ANGLE = 2.399963229728653;
 
-  const GOLDEN_ANGLE = 2.399963229728653; // radians (~137.5 deg)
-
-  for(let i=0;i<regions.length;i++){
-    const rgn = regions[i];
-    const n = (i===regions.length-1)? total - created : per;
+  for(const rgn of regions){
     const o = rgn.obj;
+    let n;
 
     if(rgn.type==='disc'){
-      // sunflower / Vogel's method -> deterministic circular distribution
-      const R = +o.radius;
-      const r0 = +o.innerRadius || 0;
-      for(let k=0;k<n;k++){
-        // fractional index in [0,1)
-        const f = (k + 0.5) / n;
-        // radial distance — sqrt gives even area spacing
-        const radial = Math.sqrt(f);
-        const r = r0 + radial * (R - r0);
-        const theta = k * GOLDEN_ANGLE;
-        const dx = Math.cos(theta) * r;
-        const dy = Math.sin(theta) * r;
-        particles.push({x: o.x + dx, y: o.y + dy, vx: o.vx, vy: o.vy, ax:0, ay:0});
-      }
-    }else{
-      // grid layout inside rect: deterministic grid placement of n points
-      const Wrect = +o.w;
-      const Hrect = +o.h;
-      // choose grid shape preserving aspect ratio
-      const aspect = Math.max(1e-6, Wrect / Hrect);
-      let cols = Math.ceil(Math.sqrt(n * aspect));
-      let rows = Math.ceil(n / cols);
-      // ensure enough cells
-      while(cols * (rows-1) >= n) rows--;
-      const cellW = Wrect / cols;
-      const cellH = Hrect / rows;
-      for(let k=0;k<n;k++){
-        const col = k % cols;
-        const row = Math.floor(k / cols);
-        const dx = -Wrect/2 + (col + 0.5) * cellW;
-        const dy = -Hrect/2 + (row + 0.5) * cellH;
-        particles.push({x: o.x + dx, y: o.y + dy, vx: o.vx, vy: o.vy, ax:0, ay:0});
-      }
+      const R=o.radius, R0=o.innerRadius||0;
+      const area = Math.PI*(R*R - R0*R0);
+      n = Math.max(1, Math.floor(area * density));
+    } else {
+      const Wrect=o.w, Hrect=o.h;
+      const area = Wrect * Hrect;
+      n = Math.max(1, Math.floor(area * density));
     }
 
-    created += n;
+    if(rgn.type==='disc'){
+      const R=o.radius, R0=o.innerRadius||0;
+      for(let k=0;k<n;k++){
+        const f = (k+0.5)/n;
+        const radial = Math.sqrt(f);
+        const r = R0 + radial*(R - R0);
+        const theta = k * GOLDEN_ANGLE;
+        particles.push({
+          x:o.x + Math.cos(theta)*r,
+          y:o.y + Math.sin(theta)*r,
+          vx:o.vx, vy:o.vy, ax:0, ay:0
+        });
+      }
+    } else {
+      const Wrect=o.w, Hrect=o.h;
+      const aspect = Math.max(1e-6, Wrect/Hrect);
+      let cols = Math.ceil(Math.sqrt(n * aspect));
+      let rows = Math.ceil(n / cols);
+      while(cols*(rows-1) >= n) rows--;
+
+      const cellW = Wrect/cols;
+      const cellH = Hrect/rows;
+
+      for(let k=0;k<n;k++){
+        const col = k % cols;
+        const row = Math.floor(k/cols);
+        particles.push({
+          x:o.x + (-Wrect/2 + (col+0.5)*cellW),
+          y:o.y + (-Hrect/2 + (row+0.5)*cellH),
+          vx:o.vx, vy:o.vy, ax:0, ay:0
+        });
+      }
+    }
   }
 }
-
 
 // Physics
 function stepPhysics(dt){
   const G = parseFloat(Ginp.value) || 1000;
   const amax = parseFloat(amaxInp.value) || 2000;
 
-  // --- stars mutual gravity (pairwise) ---
+  // star-star gravity
   for(let i=0;i<stars.length;i++){
-    const si = stars[i];
+    const si=stars[i];
     let ax=0, ay=0;
     for(let j=0;j<stars.length;j++){
       if(i===j) continue;
-      const sj = stars[j];
-      const dx = sj.x - si.x; const dy = sj.y - si.y;
-      const r2 = dx*dx + dy*dy + 1e-6;
-      const r = Math.sqrt(r2);
-      const a = G * sj.mass / r2;
-      ax += a * dx / r;
-      ay += a * dy / r;
+      const sj=stars[j];
+      const dx=sj.x-si.x, dy=sj.y-si.y;
+      const r2=dx*dx+dy*dy+1e-6;
+      const r=Math.sqrt(r2);
+      const a=G*sj.mass/r2;
+      ax += a * dx/r;
+      ay += a * dy/r;
     }
-    si.vx += ax * dt;
-    si.vy += ay * dt;
+    si.vx += ax*dt;
+    si.vy += ay*dt;
   }
 
-  // update star positions
-  for(const s of stars){ s.x += s.vx * dt; s.y += s.vy * dt; }
+  for(const s of stars){ s.x+=s.vx*dt; s.y+=s.vy*dt; }
 
-  // --- particles acceleration from stars ---
-  for(let p of particles){
+  // particles → stars
+  for(const p of particles){
     let ax=0, ay=0;
     for(const s of stars){
-      const dx = s.x - p.x; const dy = s.y - p.y;
-      const r2 = dx*dx + dy*dy + 0.0001;
-      const r = Math.sqrt(r2);
-      const a = G * s.mass / r2;
-      ax += a * dx / r;
-      ay += a * dy / r;
+      const dx=s.x-p.x, dy=s.y-p.y;
+      const r2=dx*dx+dy*dy+0.0001;
+      const r=Math.sqrt(r2);
+      const a=G*s.mass/r2;
+      ax+=a*dx/r;
+      ay+=a*dy/r;
     }
-    // clamp
-    const am = Math.sqrt(ax*ax + ay*ay);
-    if(am>amax){ ax *= amax/am; ay *= amax/am; }
-    p.ax = ax; p.ay = ay;
-    // integrate velocity & position (semi-implicit)
-    p.vx += p.ax * dt;
-    p.vy += p.ay * dt;
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
+    const am=Math.sqrt(ax*ax+ay*ay);
+    if(am>amax){ ax*=amax/am; ay*=amax/am; }
+
+    p.ax=ax; p.ay=ay;
+    p.vx+=ax*dt;
+    p.vy+=ay*dt;
+    p.x+=p.vx*dt;
+    p.y+=p.vy*dt;
   }
 }
 
-// Color mapping (acceleration magnitude -> hue)
-function accelToColor(a, amax){
-  // map 0..amax to 240 (blue) -> 0 (red)
-  const t = Math.max(0, Math.min(1, a/amax));
-  const hue = 240 - 240 * t; // 240 blue to 0 red
-  const sat = 100 - 5*t;
-  const light = 50 + 10*t;
-  return 'hsl('+hue+','+sat+'%,'+light+'%)';
+function accelToColor(a,amax){
+  const t=Math.max(0,Math.min(1,a/amax));
+  const hue=240 - 240*t;
+  const sat=100 - 5*t;
+  const light=50 + 10*t;
+  return `hsl(${hue},${sat}%,${light}%)`;
 }
 
 let lastTime = performance.now();
-let view = {x:0,y:0,scale:1};
+let view={x:0,y:0,scale:1};
 let frames=0, accumTime=0;
+
 function render(now){
-  const rawdt = (now - lastTime)/1000; lastTime = now;
-  const targetDt = parseFloat(dtInp.value) || 0.016;
+  const rawdt=(now - lastTime)/1000; lastTime=now;
+  const targetDt=parseFloat(dtInp.value)||0.016;
 
   if(!paused || stepOnce){
     stepPhysics(targetDt);
-    if(stepOnce) { stepOnce=false; paused=true; }
+    if(stepOnce){ stepOnce=false; paused=true; }
   }
 
   ctx.clearRect(0,0,W,H);
-  ctx.fillStyle = '#000';
+  ctx.fillStyle='#000';
   ctx.fillRect(0,0,W,H);
 
-  // pixel/world scaling
-  const s = W / (1000 * view.scale);   // px per world unit
+  const s = W/(1000*view.scale);
 
-  // draw particles
-  const amax = parseFloat(amaxInp.value)||2000;
+  const amax=parseFloat(amaxInp.value)||2000;
+
   for(const p of particles){
-    const ax = p.ax||0, ay = p.ay||0;
-    const a = Math.sqrt(ax*ax + ay*ay);
-    ctx.fillStyle = accelToColor(a, amax);
+    const a=Math.sqrt(p.ax*p.ax + p.ay*p.ay);
+    ctx.fillStyle = accelToColor(a,amax);
 
-    const px = (p.x - view.x) * s + W/2;
-    const py = (p.y - view.y) * s + H/2;
-
-    const ix = px|0, iy = py|0;
-    if(ix<0 || iy<0 || ix>=W || iy>=H) continue;
-
-    ctx.fillRect(ix, iy, 1, 1);
+    const px=(p.x - view.x)*s + W/2;
+    const py=(p.y - view.y)*s + H/2;
+    const ix=px|0, iy=py|0;
+    if(ix<0||iy<0||ix>=W||iy>=H) continue;
+    ctx.fillRect(ix,iy,1,1);
   }
 
-  // draw stars
   for(const sObj of stars){
-    const sx = (sObj.x - view.x) * s + W/2;
-    const sy = (sObj.y - view.y) * s + H/2;
+    const sx=(sObj.x - view.x)*s + W/2;
+    const sy=(sObj.y - view.y)*s + H/2;
+    const sr=Math.max(1, sObj.radius*s);
 
-    const sr = Math.max(1, sObj.radius * s);
+    ctx.beginPath(); ctx.fillStyle='#fff'; ctx.globalAlpha=0.9;
+    ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
 
-    ctx.beginPath();
-    ctx.fillStyle = '#fff';
-    ctx.globalAlpha = 0.9;
-    ctx.arc(sx, sy, sr, 0, Math.PI*2);
-    ctx.fill();
-    ctx.globalAlpha = 1.0;
-
-    // mass ring scaled
-    ctx.beginPath();
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    ctx.lineWidth = 1;
-    ctx.arc(sx, sy, sObj.radius * 4 * s, 0, Math.PI*2);
-    ctx.stroke();
+    ctx.beginPath(); ctx.strokeStyle='rgba(255,255,255,0.08)';
+    ctx.arc(sx,sy,sObj.radius*4*s,0,Math.PI*2); ctx.stroke();
   }
 
-  // draw discs
-  ctx.strokeStyle = 'rgba(120,180,255,0.12)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle='rgba(120,180,255,0.12)';
+  ctx.lineWidth=1;
 
   for(const d of discs){
-    const dx = (d.x - view.x) * s + W/2;
-    const dy = (d.y - view.y) * s + H/2;
-
-    ctx.beginPath();
-    ctx.arc(dx, dy, d.radius * s, 0, Math.PI*2);
-    ctx.stroke();
-
-    if(d.innerRadius > 0){
-      ctx.beginPath();
-      ctx.arc(dx, dy, d.innerRadius * s, 0, Math.PI*2);
-      ctx.stroke();
+    const dx=(d.x - view.x)*s + W/2;
+    const dy=(d.y - view.y)*s + H/2;
+    ctx.beginPath(); ctx.arc(dx,dy,d.radius*s,0,Math.PI*2); ctx.stroke();
+    if(d.innerRadius>0){
+      ctx.beginPath(); ctx.arc(dx,dy,d.innerRadius*s,0,Math.PI*2); ctx.stroke();
     }
   }
 
-  // draw rects
   for(const r of rects){
-    const cx = (r.x - view.x) * s + W/2;
-    const cy = (r.y - view.y) * s + H/2;
-
-    const wScaled = r.w * s;
-    const hScaled = r.h * s;
+    const cx=(r.x - view.x)*s + W/2;
+    const cy=(r.y - view.y)*s + H/2;
+    const wScaled=r.w*s, hScaled=r.h*s;
 
     ctx.beginPath();
-    ctx.rect(cx - wScaled/2, cy - hScaled/2, wScaled, hScaled);
+    ctx.rect(cx-wScaled/2, cy-hScaled/2, wScaled, hScaled);
     ctx.stroke();
   }
 
-  // info
-  frames++; accumTime += rawdt;
+  frames++; accumTime+=rawdt;
   if(accumTime>0.5){
     infoDiv.textContent =
       `particles: ${particles.length}\nstars: ${stars.length}  dt: ${targetDt}  G: ${Ginp.value}`;
@@ -357,34 +328,33 @@ function render(now){
   requestAnimationFrame(render);
 }
 
-// UI: parse JSON and seed
-applyBtn.addEventListener('click', ()=>{
+applyBtn.addEventListener('click',()=>{
   let cfg;
-  try{ cfg = JSON.parse(jsonArea.value); }catch(e){ alert('JSON parse error: '+e.message); return; }
+  try{ cfg=JSON.parse(jsonArea.value); }
+  catch(e){ alert('JSON parse error: '+e.message); return; }
   seedFromConfig(cfg);
 });
 
 // initial seed
-try{ seedFromConfig(JSON.parse(jsonArea.value)); }catch(e){ console.error('invalid initial JSON',e); }
+try{ seedFromConfig(JSON.parse(jsonArea.value)); }catch(e){console.error(e);}
 
 requestAnimationFrame(render);
 
-// Optional: basic mouse pan & zoom
+// pan + zoom
 let dragging=false, lastMouse=null;
-canvas.addEventListener('mousedown',(e)=>{
-  dragging=true; lastMouse=[e.clientX,e.clientY]; 
-});
-window.addEventListener('mouseup',()=>{
-  dragging=false; lastMouse=null;
-});
+canvas.addEventListener('mousedown',(e)=>{ dragging=true; lastMouse=[e.clientX,e.clientY]; });
+window.addEventListener('mouseup',()=>{ dragging=false; lastMouse=null; });
 window.addEventListener('mousemove',(e)=>{
-  if(!dragging) return; const dx = e.clientX - lastMouse[0]; const dy = e.clientY - lastMouse[1]; view.x -= dx; view.y -= dy; lastMouse=[e.clientX,e.clientY];
+  if(!dragging) return;
+  const dx=e.clientX-lastMouse[0], dy=e.clientY-lastMouse[1];
+  view.x -= dx; view.y -= dy;
+  lastMouse=[e.clientX,e.clientY];
 });
 canvas.addEventListener('wheel',(e)=>{
-  e.preventDefault(); const s = Math.exp(-e.deltaY*0.001);
-  view.scale *= s;
+  e.preventDefault();
+  const sc = Math.exp(-e.deltaY*0.001);
+  view.scale *= sc;
 });
-
 </script>
 </body>
 </html>
