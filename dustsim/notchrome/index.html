@@ -4,20 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>DustSim (optimized)</title>
-  <style>
-    html,body { height:100%; margin:0; font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial }
-    #app { display:flex; height:100%; }
-    canvas { display:block; background:#000; }
-    #ui {
-      width:320px; padding:12px; box-sizing:border-box; background:#0b1220; color:#dfefff; overflow:auto;
-    }
-    label { display:block; margin-top:10px; font-weight:600; font-size:13px }
-    .row { display:flex; gap:8px; margin-top:8px }
-    input, select, textarea, button { width:100%; box-sizing:border-box; padding:6px; border-radius:4px; border:1px solid rgba(255,255,255,0.06); background:#071021; color:#dfefff }
-    textarea { font-family:monospace; resize:vertical }
-    button { cursor:pointer }
-    #info { margin-top:8px; white-space:pre; color:#cfe; font-family:monospace; font-size:13px }
-  </style>
+  <link rel="stylesheet" href="../../style.css">
 </head>
 <body>
 <div id="app">
@@ -26,27 +13,40 @@
     <h1>DustSim</h1>
     <label>Simulation parameters</label>
     <div class="row">
-      <div><label>G (gravity constant)</label><input id="G" type="number" step="0.0001" value="1000"></div>
-      <div><label>Time step (dt)</label><input id="dt" type="number" step="0.001" value="0.016"></div>
+      <div>
+        <label>G (gravity constant)</label>
+        <input id="G" type="number" step="0.0001" value="1000">
+      </div>
+      <div>
+        <label>Time step (dt)</label>
+        <input id="dt" type="number" step="0.001" value="0.016">
+      </div>
     </div>
     <label>Particles</label>
     <div class="row">
-      <div><label>Density</label><input id="density" type="number" step="0.01" value="0.5"></div>
-      <div><label>Max accel clamp</label><input id="amax" type="number" value="2000"></div>
+      <div>
+        <label>Density</label>
+        <input id="density" type="number" step="0.01" value="0.5">
+      </div>
+      <div>
+        <label>Max accel clamp</label>
+        <input id="amax" type="number" value="2000">
+      </div>
     </div>
+    <!-- NEW COLOR MODE SWITCH -->
     <label>Color Mode</label>
     <select id="colorMode">
       <option value="accel">Color: Acceleration Magnitude</option>
-      <option value="direction">Color: Acceleration Direction, Brightness: Accel Mag</option>
+      <option value="direction">Color: Acceleration Direction, Brightness: Acceleration Magnitude</option>
     </select>
     <label>Starting configuration (JSON)</label>
-    <textarea id="json" rows="12">
-{
-  "objects": [
-    { "type":"star", "x":0, "y":0, "vx":0, "vy":0, "mass":8000, "radius":8 },
-    { "type":"disc", "x":0, "y":0, "vx":0.0, "vy":0, "radius":140, "innerRadius":30 }
-  ]
-}
+    <textarea id="json" rows="14">
+    {
+      "objects": [
+        { "type":"star", "x":0, "y":0, "vx":0, "vy":0, "mass":8000, "radius":8 },
+        { "type":"disc", "x":0, "y":0, "vx":0.0, "vy":0, "radius":140, "innerRadius":30 }
+      ]
+    }
     </textarea>
     <div style="margin-top:8px" class="row">
       <button id="apply">Apply JSON</button>
@@ -58,7 +58,7 @@
       <button id="step">Step</button>
     </div>
     <label>Info</label>
-    <div id="info"></div>
+    <div id="info" style="font-family:monospace;font-size:13px;line-height:1.3"></div>
   </div>
 </div>
 
