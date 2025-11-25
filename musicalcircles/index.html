@@ -76,63 +76,99 @@ loadConfig();
 // --------------------------------
 // Core animation
 // --------------------------------
-function render(){
-  requestAnimationFrame(render);
-  ctx.clearRect(0,0,W,H);
+let prevTime = performance.now();
+const trail = [];
 
-  const cx = W/2, cy = H/2;
+function render(now) {
+    requestAnimationFrame(render);
+    const dt = (now - prevTime) * 0.001;
+    prevTime = now;
 
-  // compute chain
-  let x = cx, y = cy;
-  let angleAccum = 0;
-  for(const c of circles){
-    angleAccum += c.speed * 0.01;
-    const nx = x + Math.cos(angleAccum)*c.radius;
-    const ny = y + Math.sin(angleAccum)*c.radius;
+    ctx.clearRect(0, 0, W, H);
 
-    // draw circle
-    ctx.strokeStyle = "rgba(200,200,200,0.14)";
+    // center
+    const cx = W / 2;
+    const cy = H / 2;
+
+    let x = cx;
+    let y = cy;
+
+    // --- draw spinning circles and chained arms ---
+    for (const c of circles) {
+
+        // initialize angle once
+        if (c.angle === undefined) c.angle = 0;
+
+        // independent rotation per circle
+        c.angle += c.speed * dt;
+
+        // next position
+        const nx = x + Math.cos(c.angle) * c.radius;
+        const ny = y + Math.sin(c.angle) * c.radius;
+
+        // circle outline
+        ctx.strokeStyle = "rgba(200,200,200,0.14)";
+        ctx.beginPath();
+        ctx.arc(x, y, c.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // arm to next point
+        ctx.strokeStyle = "rgba(255,100,100,0.7)";
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(nx, ny);
+        ctx.stroke();
+
+        x = nx;
+        y = ny;
+    }
+
+    // final endpoint coordinates
+    const ex = x;
+    const ey = y;
+
+    // --- endpoint marker ---
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
     ctx.beginPath();
-    ctx.arc(x, y, c.radius, 0, Math.PI*2);
-    ctx.stroke();
+    ctx.arc(ex, ey, 3.5, 0, Math.PI * 2);
+    ctx.fill();
 
-    // link line
-    ctx.strokeStyle = "rgba(255,100,100,0.7)";
+    // --- trail ---
+    trail.push({ x: ex, y: ey });
+    if (trail.length > 1020) trail.shift();
+
+    ctx.strokeStyle = "rgba(255,255,255,0.5)";
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(x,y);
-    ctx.lineTo(nx,ny);
+
+    for (let i = 0; i < trail.length - 1; i++) {
+        const p = trail[i];
+        const q = trail[i + 1];
+        const t = i / trail.length;
+        ctx.globalAlpha = t * 0.6;
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(q.x, q.y);
+    }
+
     ctx.stroke();
+    ctx.globalAlpha = 1;
 
-    x = nx;
-    y = ny;
-  }
+    // --- audio: map endpoint to frequency ---
+    const dx = ex - cx;
+    const dy = ey - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const freq = 220 + dist * 0.6;
 
-  // draw endpoint
-  ctx.fillStyle = "white";
-  ctx.beginPath();
-  ctx.arc(x,y,3,0,Math.PI*2);
-  ctx.fill();
-
-  // push into trail
-  trail.push([x,y]);
-  if(trail.length>900) trail.shift();
-
-  // draw trail
-  ctx.strokeStyle="rgba(255,70,70,0.65)";
-  ctx.beginPath();
-  for(let i=0;i<trail.length;i++){
-    const p = trail[i];
-    if(i===0) ctx.moveTo(p[0],p[1]);
-    else ctx.lineTo(p[0],p[1]);
-  }
-  ctx.stroke();
-
-  // audio mapping
-  const dx = x - cx;
-  const dy = y - cy;
-  const dist = Math.sqrt(dx*dx + dy*dy);
-  setPitch(dist);
+    if (audioCtx && audioCtx.state === "running") {
+        const osc = window.globalOsc;
+        if (osc) {
+            osc.frequency.value = freq;
+        }
+    }
 }
+
+render(performance.now());
+
 
 render();
 </script>
