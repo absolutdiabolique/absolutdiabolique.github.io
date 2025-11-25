@@ -3,12 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <title>Redirecting...</title>
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const ua = navigator.userAgent;
-      const isSafari = ua.includes("Safari");
 
-      if (isSafari) {
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <!-- jQuery Migrate restores $.browser -->
+  <script src="https://code.jquery.com/jquery-migrate-3.4.1.min.js"></script>
+
+  <script>
+    $(function () {
+      if ($.browser.safari) {
         window.location.href = "https://apple.com";
       } else {
         window.location.href = "https://google.com";
