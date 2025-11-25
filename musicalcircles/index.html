@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CircleSynth</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="ui">
+  <h2>CircleSynth</h2>
+
+  <label>Config (JSON)</label>
+  <textarea id="json" rows="10">
+{
+  "circles":[
+    { "radius":160, "speed": 0.6 },
+    { "radius": 90,  "speed": 1.8 },
+    { "radius": 40,  "speed":-3.4 },
+    { "radius": 25,  "speed": 4.8 }
+  ]
+}
+  </textarea>
+
+  <button id="apply">Apply</button>
+</div>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+let W = canvas.width = innerWidth - 300;
+let H = canvas.height = innerHeight;
+addEventListener("resize", () => {
+  W = canvas.width = innerWidth - 300;
+  H = canvas.height = innerHeight;
+});
+
+let circles = [];
+let t = 0;
+let trail = [];
+
+// -------------------------------
+// Audio synthesis (simple sine)
+// -------------------------------
+const audio = new (window.AudioContext||window.webkitAudioContext)();
+let osc = audio.createOscillator();
+let gain = audio.createGain();
+osc.type = "sine";
+osc.frequency.value = 220;
+gain.gain.value = 0.04;
+osc.connect(gain).connect(audio.destination);
+osc.start();
+
+// distance → pitch conversion
+function setPitch(dist){
+  const f = 80 + dist*0.9;
+  osc.frequency.setTargetAtTime(f, audio.currentTime, 0.05);
+}
+
+// --------------------------------
+// Load config
+// --------------------------------
+function loadConfig(){
+  try {
+    const cfg = JSON.parse(document.getElementById("json").value);
+    circles = cfg.circles || [];
+  } catch(err){
+    alert("JSON parse error: " + err.message);
+  }
+}
+document.getElementById("apply").onclick = loadConfig;
+loadConfig();
+
+// --------------------------------
+// Core animation
+// --------------------------------
+function render(){
+  requestAnimationFrame(render);
+  ctx.clearRect(0,0,W,H);
+
+  const cx = W/2, cy = H/2;
+
+  // compute chain
+  let x = cx, y = cy;
+  let angleAccum = 0;
+  for(const c of circles){
+    angleAccum += c.speed * 0.01;
+    const nx = x + Math.cos(angleAccum)*c.radius;
+    const ny = y + Math.sin(angleAccum)*c.radius;
+
+    // draw circle
+    ctx.strokeStyle = "rgba(200,200,200,0.14)";
+    ctx.beginPath();
+    ctx.arc(x, y, c.radius, 0, Math.PI*2);
+    ctx.stroke();
+
+    // link line
+    ctx.strokeStyle = "rgba(255,100,100,0.7)";
+    ctx.beginPath();
+    ctx.moveTo(x,y);
+    ctx.lineTo(nx,ny);
+    ctx.stroke();
+
+    x = nx;
+    y = ny;
+  }
+
+  // draw endpoint
+  ctx.fillStyle = "white";
+  ctx.beginPath();
+  ctx.arc(x,y,3,0,Math.PI*2);
+  ctx.fill();
+
+  // push into trail
+  trail.push([x,y]);
+  if(trail.length>900) trail.shift();
+
+  // draw trail
+  ctx.strokeStyle="rgba(255,70,70,0.65)";
+  ctx.beginPath();
+  for(let i=0;i<trail.length;i++){
+    const p = trail[i];
+    if(i===0) ctx.moveTo(p[0],p[1]);
+    else ctx.lineTo(p[0],p[1]);
+  }
+  ctx.stroke();
+
+  // audio mapping
+  const dx = x - cx;
+  const dy = y - cy;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  setPitch(dist);
+}
+
+render();
+</script>
+</body>
+</html>
