@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DustSim (optimized)</title>
+  <style>
+    html,body { height:100%; margin:0; font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial }
+    #app { display:flex; height:100%; }
+    canvas { display:block; background:#000; }
+    #ui {
+      width:320px; padding:12px; box-sizing:border-box; background:#0b1220; color:#dfefff; overflow:auto;
+    }
+    label { display:block; margin-top:10px; font-weight:600; font-size:13px }
+    .row { display:flex; gap:8px; margin-top:8px }
+    input, select, textarea, button { width:100%; box-sizing:border-box; padding:6px; border-radius:4px; border:1px solid rgba(255,255,255,0.06); background:#071021; color:#dfefff }
+    textarea { font-family:monospace; resize:vertical }
+    button { cursor:pointer }
+    #info { margin-top:8px; white-space:pre; color:#cfe; font-family:monospace; font-size:13px }
+  </style>
+</head>
+<body>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="ui">
+    <h1>DustSim</h1>
+    <label>Simulation parameters</label>
+    <div class="row">
+      <div><label>G (gravity constant)</label><input id="G" type="number" step="0.0001" value="1000"></div>
+      <div><label>Time step (dt)</label><input id="dt" type="number" step="0.001" value="0.016"></div>
+    </div>
+    <label>Particles</label>
+    <div class="row">
+      <div><label>Density</label><input id="density" type="number" step="0.01" value="0.5"></div>
+      <div><label>Max accel clamp</label><input id="amax" type="number" value="2000"></div>
+    </div>
+    <label>Color Mode</label>
+    <select id="colorMode">
+      <option value="accel">Color: Acceleration Magnitude</option>
+      <option value="direction">Color: Acceleration Direction, Brightness: Accel Mag</option>
+    </select>
+    <label>Starting configuration (JSON)</label>
+    <textarea id="json" rows="12">
+{
+  "objects": [
+    { "type":"star", "x":0, "y":0, "vx":0, "vy":0, "mass":8000, "radius":8 },
+    { "type":"disc", "x":0, "y":0, "vx":0.0, "vy":0, "radius":140, "innerRadius":30 }
+  ]
+}
+    </textarea>
+    <div style="margin-top:8px" class="row">
+      <button id="apply">Apply JSON</button>
+      <button id="reset">Reset View</button>
+    </div>
+    <label>Quick actions</label>
+    <div class="row">
+      <button id="pause">Pause</button>
+      <button id="step">Step</button>
+    </div>
+    <label>Info</label>
+    <div id="info"></div>
+  </div>
+</div>
+
+<script>
+/* --- globals & DOM --- */
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+let W = canvas.width = innerWidth - 320;
+let H = canvas.height = innerHeight;
+window.addEventListener('resize', onResize);
+
+const Ginp = document.getElementById('G');
+const dtInp = document.getElementById('dt');
+const densityInp = document.getElementById('density');
+const amaxInp = document.getElementById('amax');
+const colorModeSel = document.getElementById('colorMode');
+const jsonArea = document.getElementById('json');
+const applyBtn = document.getElementById('apply');
+const resetBtn = document.getElementById('reset');
+const pauseBtn = document.getElementById('pause');
+const stepBtn = document.getElementById('step');
+const infoDiv = document.getElementById('info');
+
+let paused = false, stepOnce = false;
+pauseBtn.addEventListener('click', ()=>{ paused = !paused; pauseBtn.textContent = paused ? 'Resume' : 'Pause'; });
+stepBtn.addEventListener('click', ()=>{ stepOnce=true; paused=false; setTimeout(()=>paused=true,50); });
+resetBtn.addEventListener('click', ()=>{ view = {x:0,y:0,scale:1}; ensureImageBuffer(); });
+
+// simulation data
+class Star { constructor(x,y,vx,vy,mass,radius){ this.x=x; this.y=y; this.vx=vx; this.vy=vy; this.mass=mass; this.radius=radius; } }
+class Disc { constructor(x,y,vx,vy,radius,innerRadius){ this.x=x; this.y=y; this.vx=vx; this.vy=vy; this.radius=radius; this.innerRadius=innerRadius||0; } }
+class Rect { constructor(x,y,vx,vy,w,h){ this.x=x; this.y=y; this.vx=vx; this.vy=vy; this.w=w; this.h=h; } }
+
+let stars = [], discs = [], rects = [];
+
+/* particles represented as interleaved Float32Array for speed:
+   [x, y, vx, vy, ax, ay] * N
+*/
+let P = null; // Float32Array
+let particleCount = 0;
+
+/* offscreen pixel buffer */
+let img = null;
+let buf = null; // Uint8ClampedArray reference to img.data
+
+/* view */
+let view = { x:0, y:0, scale:1 };
+
+/* timing & fps */
+let lastTime = performance.now();
+let fps = 0, fpsAccum = 0, fpsFrames = 0;
+
+/* visibility */
+let hidden = false;
+document.addEventListener('visibilitychange', ()=> hidden = document.hidden);
+
+/* pointer for zooming */
+let lastMouse = null;
+let isDragging = false;
+canvas.addEventListener('mousedown', (e)=>{ isDragging=true; lastMouse=[e.clientX,e.clientY]; });
+window.addEventListener('mouseup', ()=>{ isDragging=false; lastMouse=null; });
+window.addEventListener('mousemove', (e)=>{ if(!isDragging) return; const dx=e.clientX-lastMouse[0], dy=e.clientY-lastMouse[1]; const s = W/(1000*view.scale); view.x -= dx / s; view.y -= dy / s; lastMouse=[e.clientX,e.clientY]; });
+
+canvas.addEventListener('wheel', (e)=>{
+  e.preventDefault();
+  const sBefore = view.scale;
+  const zoomFactor = Math.exp(-e.deltaY * 0.0015);
+  const mx = e.clientX - canvas.getBoundingClientRect().left;
+  const my = e.clientY - canvas.getBoundingClientRect().top;
+  // convert screen to world
+  const s = W/(1000*view.scale);
+  const wx = (mx - W/2)/s + view.x;
+  const wy = (my - H/2)/s + view.y;
+  view.scale *= zoomFactor;
+  // keep pointer fixed in world coords
+  const sAfter = W/(1000*view.scale);
+  view.x = wx - (mx - W/2)/sAfter;
+  view.y = wy - (my - H/2)/sAfter;
+});
+
+/* helpers */
+function onResize(){
+  W = canvas.width = innerWidth - 320;
+  H = canvas.height = innerHeight;
+  ensureImageBuffer();
+}
+function ensureImageBuffer(){
+  img = ctx.createImageData(W, H);
+  buf = img.data;
+}
+
+/* HSL->RGB (fast, inputs: h in [0,360), s,l in [0,1]) returns [r,g,b] 0..255 */
+function hslToRgb(h, s, l){
+  h = (h % 360 + 360) % 360;
+  s = Math.max(0, Math.min(1, s));
+  l = Math.max(0, Math.min(1, l));
+  if(s === 0){
+    const v = Math.round(l * 255);
+    return [v,v,v];
+  }
+  const c = (1 - Math.abs(2*l - 1)) * s;
+  const hp = h / 60;
+  const x = c * (1 - Math.abs(hp % 2 - 1));
+  let r1=0,g1=0,b1=0;
+  if(hp < 1){ r1=c; g1=x; b1=0; }
+  else if(hp < 2){ r1=x; g1=c; b1=0; }
+  else if(hp < 3){ r1=0; g1=c; b1=x; }
+  else if(hp < 4){ r1=0; g1=x; b1=c; }
+  else if(hp < 5){ r1=x; g1=0; b1=c; }
+  else { r1=c; g1=0; b1=x; }
+  const m = l - c/2;
+  return [ Math.round((r1 + m)*255), Math.round((g1 + m)*255), Math.round((b1 + m)*255) ];
+}
+
+/* seeding & particle store helpers */
+function allocateParticleStorage(n){
+  particleCount = n;
+  P = new Float32Array(n * 6);
+}
+function setParticleFromObj(i, obj){
+  const base = i * 6;
+  P[base+0] = obj.x;
+  P[base+1] = obj.y;
+  P[base+2] = obj.vx || 0;
+  P[base+3] = obj.vy || 0;
+  P[base+4] = 0; // ax
+  P[base+5] = 0; // ay
+}
+
+/* seeding function (sunflower + grid), but builds Float32Array */
+function seedFromConfig(cfg){
+  stars = []; discs = []; rects = [];
+  const obj = cfg.objects || [];
+  for(const o of obj){
+    if(o.type==='star') stars.push(new Star(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0,+o.mass||1000,+o.radius||6));
+    if(o.type==='disc') discs.push(new Disc(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0,+o.radius||100,+o.innerRadius||0));
+    if(o.type==='rect') rects.push(new Rect(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0,+o.width||100,+o.height||60));
+  }
+
+  const regions=[];
+  for(const d of discs) regions.push({type:'disc',obj:d});
+  for(const r of rects) regions.push({type:'rect',obj:r});
+  if(regions.length===0){
+    discs.push(new Disc(0,0,0,0,Math.min(800,Math.min(W,H)*0.4),0));
+    regions.push({type:'disc',obj:discs[discs.length-1]});
+  }
+
+  const density = Math.max(0, parseFloat(densityInp.value) || 0.5);
+  const GOLDEN_ANGLE = 2.399963229728653;
+
+  // gather particle positions
+  const pts = [];
+  for(const rgn of regions){
+    const o = rgn.obj;
+    let n;
+    if(rgn.type==='disc'){
+      const R=o.radius, R0=o.innerRadius||0;
+      const area = Math.PI*(R*R - R0*R0);
+      n = Math.max(1, Math.floor(area * density));
+    } else {
+      const Wrect=o.w, Hrect=o.h;
+      const area = Wrect * Hrect;
+      n = Math.max(1, Math.floor(area * density));
+    }
+
+    if(rgn.type==='disc'){
+      const R=o.radius, R0=o.innerRadius||0;
+      for(let k=0;k<n;k++){
+        const f = (k+0.5)/n;
+        const radial = Math.sqrt(f);
+        const r = R0 + radial*(R - R0);
+        const theta = k * GOLDEN_ANGLE;
+        pts.push({ x: o.x + Math.cos(theta)*r, y: o.y + Math.sin(theta)*r, vx: o.vx, vy: o.vy });
+      }
+    } else {
+      const Wrect=o.w, Hrect=o.h;
+      const aspect = Math.max(1e-6, Wrect/Hrect);
+      let cols = Math.ceil(Math.sqrt(n * aspect));
+      let rows = Math.ceil(n / cols);
+      while(cols*(rows-1) >= n) rows--;
+      const cellW = Wrect/cols;
+      const cellH = Hrect/rows;
+      for(let k=0;k<n;k++){
+        const col = k % cols;
+        const row = Math.floor(k/cols);
+        pts.push({
+          x: o.x + (-Wrect/2 + (col+0.5)*cellW),
+          y: o.y + (-Hrect/2 + (row+0.5)*cellH),
+          vx: o.vx, vy: o.vy
+        });
+      }
+    }
+  }
+
+  allocateParticleStorage(pts.length);
+  for(let i=0;i<pts.length;i++) setParticleFromObj(i, pts[i]);
+  ensureImageBuffer();
+}
+
+/* physics step - optimized */
+function stepPhysics(dt){
+  const G = parseFloat(Ginp.value) || 1000;
+  const amax = parseFloat(amaxInp.value) || 2000;
+
+  // update stars (if >1 do pairwise; if 1 skip)
+  if(stars.length > 1){
+    for(let i=0;i<stars.length;i++){
+      const si = stars[i];
+      let ax = 0, ay = 0;
+      for(let j=0;j<stars.length;j++){
+        if(i===j) continue;
+        const sj = stars[j];
+        const dx = sj.x - si.x, dy = sj.y - si.y;
+        const r2 = dx*dx + dy*dy + 1.0; // soften
+        const invr = 1/Math.sqrt(r2);
+        const a = G * sj.mass / r2;
+        ax += a * dx * invr;
+        ay += a * dy * invr;
+      }
+      si.vx += ax * dt;
+      si.vy += ay * dt;
+    }
+  }
+  for(const s of stars){
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+  }
+
+  // particles: P is Float32Array [x,y,vx,vy,ax,ay] * N
+  const n = particleCount;
+  for(let i=0;i<n;i++){
+    const b = i*6;
+    let ax = 0, ay = 0;
+    const px = P[b], py = P[b+1];
+    for(const s of stars){
+      const dx = s.x - px, dy = s.y - py;
+      const r2 = dx*dx + dy*dy + 1e-4;
+      const invr = 1/Math.sqrt(r2);
+      const a = (G * s.mass) / r2;
+      ax += a * dx * invr;
+      ay += a * dy * invr;
+    }
+    const am = Math.hypot(ax, ay);
+    if(am > amax){
+      const f = amax / am;
+      ax *= f; ay *= f;
+    }
+    P[b+4] = ax; P[b+5] = ay;
+    P[b+2] += ax * dt; // vx
+    P[b+3] += ay * dt; // vy
+    P[b+0] += P[b+2] * dt; // x
+    P[b+1] += P[b+3] * dt; // y
+  }
+}
+
+/* drawing using ImageData */
+function renderParticlesToBuffer(){
+  // clear buffer to black
+  buf.fill(0);
+
+  const colorMode = colorModeSel.value;
+  const amax = Math.max(1e-6, parseFloat(amaxInp.value) || 2000);
+  const s = W / (1000 * view.scale);
+  const halfW = W / 2, halfH = H / 2;
+
+  const n = particleCount;
+  for(let i=0;i<n;i++){
+    const b = i*6;
+    const px = ((P[b+0] - view.x) * s + halfW) | 0;
+    const py = ((P[b+1] - view.y) * s + halfH) | 0;
+    if(px < 0 || py < 0 || px >= W || py >= H) continue;
+
+    const ax = P[b+4], ay = P[b+5];
+    const a = Math.hypot(ax, ay);
+
+    let r=255,g=255,bv=255;
+    if(colorMode === 'accel'){
+      const t = Math.max(0, Math.min(1, a/amax));
+      const hue = 240 - 240*t; // 240 -> 0
+      const sat = 1.0 - 0.05*t;
+      const light = 0.5 + 0.10*t;
+      [r,g,bv] = hslToRgb(hue, sat, light);
+    } else {
+      let ang = Math.atan2(ay, ax) * 180/Math.PI;
+      if(!Number.isFinite(ang)) ang = 0;
+      const hue = (ang + 360) % 360;
+      const t = Math.max(0, Math.min(1, a/amax));
+      const light = 0.30 + 0.40*t;
+      [r,g,bv] = hslToRgb(hue, 1.0, light);
+    }
+
+    const idx = (py * W + px) * 4;
+    buf[idx] = r;
+    buf[idx+1] = g;
+    buf[idx+2] = bv;
+    buf[idx+3] = 255;
+  }
+}
+
+/* main render loop */
+function render(now){
+  const rawdt = (now - lastTime) / 1000;
+  lastTime = now;
+
+  // fps
+  fpsFrames++;
+  fpsAccum += rawdt;
+  if(fpsAccum >= 0.25){ fps = fpsFrames / fpsAccum; fpsFrames = 0; fpsAccum = 0; }
+
+  const targetDt = parseFloat(dtInp.value) || 0.016;
+  if(!paused || stepOnce){
+    if(!hidden) stepPhysics(targetDt);
+    if(stepOnce){ stepOnce=false; paused=true; }
+  }
+
+  renderParticlesToBuffer();
+  ctx.putImageData(img, 0, 0);
+
+  // draw stars & overlays
+  const s = W / (1000 * view.scale);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for(const st of stars){
+    const sx = (st.x - view.x) * s + W/2;
+    const sy = (st.y - view.y) * s + H/2;
+    const sr = Math.max(1, st.radius * s);
+    ctx.beginPath();
+    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = 0.92;
+    ctx.arc(sx, sy, sr, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    ctx.arc(sx, sy, st.radius*4*s, 0, Math.PI*2);
+    ctx.stroke();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();
+
+  // discs & rect overlays
+  ctx.save();
+  ctx.strokeStyle = 'rgba(120,180,255,0.12)';
+  ctx.lineWidth = 1;
+  for(const d of discs){
+    const dx = (d.x - view.x) * s + W/2;
+    const dy = (d.y - view.y) * s + H/2;
+    ctx.beginPath(); ctx.arc(dx, dy, d.radius * s, 0, Math.PI*2); ctx.stroke();
+    if(d.innerRadius > 0){ ctx.beginPath(); ctx.arc(dx, dy, d.innerRadius * s, 0, Math.PI*2); ctx.stroke(); }
+  }
+  for(const r of rects){
+    const cx = (r.x - view.x) * s + W/2;
+    const cy = (r.y - view.y) * s + H/2;
+    const wScaled = r.w * s, hScaled = r.h * s;
+    ctx.beginPath(); ctx.rect(cx - wScaled/2, cy - hScaled/2, wScaled, hScaled); ctx.stroke();
+  }
+  ctx.restore();
+
+  // info overlay
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle = '#eaf';
+  ctx.font = '13px monospace';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`FPS: ${fps.toFixed(1)}`, 10, 10);
+  const left   = ((0 - W/2) / s + view.x).toFixed(0);
+  const right  = ((W - W/2) / s + view.x).toFixed(0);
+  const top    = ((0 - H/2) / s + view.y).toFixed(0);
+  const bottom = ((H - H/2) / s + view.y).toFixed(0);
+  ctx.fillText(`x:${left},${right} y:${top},${bottom}`, 10, 28);
+  ctx.restore();
+
+  // info pane updates (lower frequency)
+  accumInfo += rawdt;
+  if(accumInfo > 0.5){
+    infoDiv.textContent = `particles: ${particleCount}\nstars: ${stars.length}  dt: ${targetDt}  G: ${Ginp.value}`;
+    accumInfo = 0;
+  }
+
+  requestAnimationFrame(render);
+}
+let accumInfo = 0;
+
+/* UI bindings */
+applyBtn.addEventListener('click', ()=>{
+  let cfg;
+  try{ cfg = JSON.parse(jsonArea.value); } catch(e){ alert('JSON parse error: '+e.message); return; }
+  seedFromConfig(cfg);
+});
+try{ seedFromConfig(JSON.parse(jsonArea.value)); } catch(e){ console.error('seed parse', e); }
+
+/* initialize */
+ensureImageBuffer();
+requestAnimationFrame(render);
+
+</script>
+</body>
+</html>
+
+modify this code so that the background behind the stars and the dust is black
