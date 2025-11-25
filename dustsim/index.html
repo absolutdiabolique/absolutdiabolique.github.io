@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Redirecting...</title>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const ua = navigator.userAgent;
+      const isSafari = ua.includes("Safari");
+
+      if (isSafari) {
+        window.location.href = "https://apple.com";
+      } else {
+        window.location.href = "https://google.com";
+      }
+    });
+  </script>
+</head>
+<body>
+  Redirecting...
+</body>
+</html>
