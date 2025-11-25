@@ -9,6 +9,7 @@
 <body>
 <div id="app">
   <canvas id="c"></canvas>
+
   <div id="ui">
     <h1>DustSim</h1>
 
@@ -25,6 +26,7 @@
     </div>
 
     <label>Particles</label>
+    <div class="row">
       <div>
         <label>Density</label>
         <input id="density" type="number" step="0.01" value="0.5">
@@ -56,11 +58,19 @@
       <button id="apply">Apply JSON</button>
       <button id="reset">Reset View</button>
     </div>
+
     <label>Quick actions</label>
     <div class="row">
       <button id="pause">Pause</button>
       <button id="step">Step</button>
     </div>
+
+
+
+
+
+
+
     <label>Info</label>
     <div id="info" style="font-family:monospace;font-size:13px;line-height:1.3"></div>
   </div>
@@ -68,6 +78,8 @@
 
 <script>
 // Simple DustSim — single-file
+
+
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d', {alpha:false});
 let W=canvas.width=innerWidth - 340; let H=canvas.height=innerHeight;
@@ -85,10 +97,15 @@ const resetBtn = document.getElementById('reset');
 const pauseBtn = document.getElementById('pause');
 const stepBtn = document.getElementById('step');
 const infoDiv = document.getElementById('info');
+
+
+
 let paused=false; let stepOnce=false;
 pauseBtn.addEventListener('click', ()=>{ paused = !paused; pauseBtn.textContent = paused ? 'Resume' : 'Pause'; });
 stepBtn.addEventListener('click', ()=>{ stepOnce=true; paused=false; setTimeout(()=>paused=true,50); });
 resetBtn.addEventListener('click', ()=>{ view = {x:0,y:0,scale:1}; });
+
+
 // Data structures
 class Star{constructor(x,y,vx,vy,mass,radius){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.mass=mass;this.radius=radius;}}
 class Disc{constructor(x,y,vx,vy,radius,innerRadius){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.radius=radius;this.innerRadius=innerRadius||0;}}
@@ -108,9 +125,22 @@ function uniformPointInAnnulus(r1,r2){
   const t = 2*Math.PI*Math.random();
   const r = Math.sqrt(Math.random()*(r2*r2 - r1*r1) + r1*r1);
   return [Math.cos(t)*r, Math.sin(t)*r];
+
+
+
+
+
+
+
+
+
+
+
 }
 
 // sunflower + grid pattern seeding
+
+
 function seedFromConfig(cfg){
   stars=[]; discs=[]; rects=[]; particles=[];
   const obj = cfg.objects || [];
@@ -118,6 +148,8 @@ function seedFromConfig(cfg){
     if(o.type==='star') stars.push(new Star(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0,+o.mass||1000,+o.radius||6));
     if(o.type==='disc') discs.push(new Disc(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0,+o.radius||100,+o.innerRadius||0));
     if(o.type==='rect') rects.push(new Rect(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0,+o.width||100,+o.height||60));
+
+
   }
 
   const regions=[];
@@ -180,6 +212,17 @@ function seedFromConfig(cfg){
       }
     }
   }
+
+
+
+
+
+
+
+
+
+
+
 }
 
 // Physics
@@ -225,6 +268,9 @@ function stepPhysics(dt){
     p.x+=p.vx*dt;
     p.y+=p.vy*dt;
   }
+
+
+
 }
 
 // COLOR FUNCTIONS
@@ -234,6 +280,46 @@ function colorAccelMagnitude(a, amax){
   const sat=100 - 5*t;
   const light=50 + 10*t;
   return `hsl(${hue},${sat}%,${light}%)`;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
 
 function colorDirection(ax, ay, a, amax){
@@ -242,7 +328,136 @@ function colorDirection(ax, ay, a, amax){
   let t = Math.max(0, Math.min(1, a/amax));
   let light = 30 + 40*t;
   return `hsl(${hue},100%,${light}%)`;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }
+
+
+
+
 let lastTime = performance.now();
 let view={x:0,y:0,scale:1};
 let frames=0, accumTime=0;
@@ -269,8 +484,14 @@ function render(now){
 
   if(!paused || stepOnce){
     stepPhysics(targetDt);
+
+
+
+
     if(stepOnce){ stepOnce=false; paused=true; }
   }
+
+
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle='#000';
   ctx.fillRect(0,0,W,H);
@@ -278,6 +499,9 @@ function render(now){
   const s = W/(1000*view.scale);
   const amax=parseFloat(amaxInp.value)||2000;
   const colorMode = colorModeSel.value;
+
+
+
   for(const p of particles){
     const a=Math.sqrt(p.ax*p.ax + p.ay*p.ay);
 
@@ -368,7 +592,12 @@ function render(now){
     10, 
     28
   );
+
   ctx.restore();
+
+
+
+
   requestAnimationFrame(render);
 }
 
@@ -379,6 +608,7 @@ applyBtn.addEventListener('click',()=>{
   catch(e){ alert('JSON parse error: '+e.message); return; }
   seedFromConfig(cfg);
 });
+
 
 try{ seedFromConfig(JSON.parse(jsonArea.value)); }catch(e){console.error(e);}
 
