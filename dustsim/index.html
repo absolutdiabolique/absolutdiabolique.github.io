@@ -3,506 +3,402 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BounceSim</title>
+  <title>DustSim</title>
   <link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <div id="app">
   <canvas id="c"></canvas>
-
   <div id="ui">
-    <h2 style="margin:0 0 6px 0">BounceSim (CCD + hybrid)</h2>
+    <h1>DustSim</h1>
 
     <label>Simulation parameters</label>
     <div class="row">
-      <div><label>Gravity</label><input id="G" type="number" step="1" value="900"></div>
-      <div><label>dt (s)</label><input id="dt" type="number" step="0.001" value="0.016"></div>
+      <div>
+        <label>G (gravity constant)</label>
+        <input id="G" type="number" step="0.0001" value="1000">
+      </div>
+      <div>
+        <label>Time step (dt)</label>
+        <input id="dt" type="number" step="0.001" value="0.016">
+      </div>
     </div>
 
-    <label>Dust</label>
-    <div class="row">
-      <div><label>Density</label><input id="density" type="number" step="0.01" value="0.35"></div>
-      <div><label>Particle radius</label><input id="prad" type="number" step="0.2" value="2"></div>
+    <label>Particles</label>
+      <div>
+        <label>Density</label>
+        <input id="density" type="number" step="0.01" value="0.5">
+      </div>
+      <div>
+        <label>Max accel clamp</label>
+        <input id="amax" type="number" value="2000">
+      </div>
     </div>
 
-    <label>JSON objects</label>
-    <textarea id="json" rows="16">
-{
-  "objects": [
-    { "type":"line", "x1":-220, "y1":100, "x2":220, "y2":120, "elasticity":0.6 },
-    { "type":"ellipse", "x":180, "y":320, "rx":100, "ry":60, "elasticity":0.4 },
-    { "type":"rectCloud", "x":-240, "y":-120, "w":260, "h":80, "elasticity":0.35 },
-    { "type":"discCloud", "x":60, "y":-220, "radius":120, "innerRadius":20, "elasticity":0.3 }
-  ]
-}
+    <!-- NEW COLOR MODE SWITCH -->
+    <label>Color Mode</label>
+    <select id="colorMode">
+      <option value="accel">Color: Acceleration Magnitude</option>
+      <option value="direction">Color: Acceleration Direction, Brightness: Acceleration Magnitude</option>
+    </select>
+
+    <label>Starting configuration (JSON)</label>
+    <textarea id="json" rows="14">
+    {
+      "objects": [
+        { "type":"star", "x":0, "y":0, "vx":0, "vy":0, "mass":8000, "radius":8 },
+        { "type":"disc", "x":0, "y":0, "vx":0.0, "vy":0, "radius":140, "innerRadius":30 }
+      ]
+    }
     </textarea>
 
-    <div class="row" style="margin-top:8px">
+    <div style="margin-top:8px" class="row">
       <button id="apply">Apply JSON</button>
       <button id="reset">Reset View</button>
     </div>
-
-    <label>Quick</label>
+    <label>Quick actions</label>
     <div class="row">
       <button id="pause">Pause</button>
       <button id="step">Step</button>
     </div>
-
-    <label>Debug</label>
-    <div class="row">
-      <div><label>Max sub-steps</label><input id="maxSteps" type="number" step="1" value="5"></div>
-      <div><label>CCD samples (ellipse/line)</label><input id="ccdSamples" type="number" step="1" value="12"></div>
-    </div>
-
     <label>Info</label>
-    <div id="info"></div>
+    <div id="info" style="font-family:monospace;font-size:13px;line-height:1.3"></div>
   </div>
 </div>
 
 <script>
-// ---------------------------
-// Canvas + UI
-// ---------------------------
+// Simple DustSim — single-file
 const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d', { alpha: false });
-let W = canvas.width = innerWidth - 340, H = canvas.height = innerHeight;
-window.addEventListener('resize', ()=>{ W = canvas.width = innerWidth - 340; H = canvas.height = innerHeight; });
+const ctx = canvas.getContext('2d', {alpha:false});
+let W=canvas.width=innerWidth - 340; let H=canvas.height=innerHeight;
+window.addEventListener('resize', ()=>{ W=canvas.width=innerWidth - 340; H=canvas.height=innerHeight; });
 
+// UI elements
 const Ginp = document.getElementById('G');
 const dtInp = document.getElementById('dt');
 const densityInp = document.getElementById('density');
-const pradInp = document.getElementById('prad');
+const amaxInp = document.getElementById('amax');
+const colorModeSel = document.getElementById('colorMode');
 const jsonArea = document.getElementById('json');
 const applyBtn = document.getElementById('apply');
 const resetBtn = document.getElementById('reset');
 const pauseBtn = document.getElementById('pause');
 const stepBtn = document.getElementById('step');
 const infoDiv = document.getElementById('info');
-const maxStepsInp = document.getElementById('maxSteps');
-const ccdSamplesInp = document.getElementById('ccdSamples');
-
-let paused = false, stepOnce = false;
+let paused=false; let stepOnce=false;
 pauseBtn.addEventListener('click', ()=>{ paused = !paused; pauseBtn.textContent = paused ? 'Resume' : 'Pause'; });
 stepBtn.addEventListener('click', ()=>{ stepOnce=true; paused=false; setTimeout(()=>paused=true,50); });
 resetBtn.addEventListener('click', ()=>{ view = {x:0,y:0,scale:1}; });
-
-// ---------------------------
 // Data structures
-// ---------------------------
-class Line{constructor(x1,y1,x2,y2,e){this.x1=x1;this.y1=y1;this.x2=x2;this.y2=y2;this.e=e||0.3}}
-class Ellipse{constructor(x,y,rx,ry,e){this.x=x;this.y=y;this.rx=rx;this.ry=ry;this.e=e||0.3}}
-class RectCloud{constructor(x,y,w,h,e){this.x=x;this.y=y;this.w=w;this.h=h;this.e=e||0.3}}
-class DiscCloud{constructor(x,y,r,inner,e){this.x=x;this.y=y;this.r=r;this.inner=inner||0;this.e=e||0.3}}
+class Star{constructor(x,y,vx,vy,mass,radius){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.mass=mass;this.radius=radius;}}
+class Disc{constructor(x,y,vx,vy,radius,innerRadius){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.radius=radius;this.innerRadius=innerRadius||0;}}
+class Rect{constructor(x,y,vx,vy,w,h){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.w=w;this.h=h;}}
 
-let lines=[], ellipses=[], rects=[], discs=[];
-let particles=[];
+let stars=[], discs=[], rects=[], particles=[];
 
-// ---------------------------
-// Math helpers
-// ---------------------------
-function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
-function dot(ax,ay,bx,by){return ax*bx+ay*by}
-function length(ax,ay){return Math.hypot(ax,ay)}
-function normalize(ax,ay){ const L=Math.hypot(ax,ay)||1; return [ax/L, ay/L]; }
-function addV(a,b){return {x:a.x+b.x,y:a.y+b.y}}
-function mulV(a,s){return {x:a.x*s,y:a.y*s}}
-function subV(a,b){return {x:a.x-b.x,y:a.y-b.y}}
-
-// point-segment distance & closest point
-function closestPointOnSegment(px,py, ax,ay, bx,by){
-  const vx = bx-ax, vy = by-ay;
-  const wx = px-ax, wy = py-ay;
-  const vlen2 = vx*vx + vy*vy;
-  if(vlen2===0) return {x:ax,y:ay,t:0};
-  let t = (wx*vx + wy*vy)/vlen2;
-  t = clamp(t,0,1);
-  return {x: ax + vx*t, y: ay + vy*t, t};
+function randRange(a,b){return a + Math.random()*(b-a)}
+function uniformPointInCircle(r){
+  const t = 2*Math.PI*Math.random();
+  const u = Math.random()+Math.random();
+  let rr = u>1?2-u:u;
+  rr *= r;
+  return [Math.cos(t)*rr, Math.sin(t)*rr];
+}
+function uniformPointInAnnulus(r1,r2){
+  const t = 2*Math.PI*Math.random();
+  const r = Math.sqrt(Math.random()*(r2*r2 - r1*r1) + r1*r1);
+  return [Math.cos(t)*r, Math.sin(t)*r];
 }
 
-// ---------------------------
-// Seeding (sunflower + grid)
-// ---------------------------
+// sunflower + grid pattern seeding
 function seedFromConfig(cfg){
-  lines=[]; ellipses=[]; rects=[]; discs=[]; particles=[];
-  const objs = cfg.objects || [];
-
-  for(const o of objs){
-    if(o.type==='line') lines.push(new Line(+o.x1||0,+o.y1||0,+o.x2||0,+o.y2||0,+o.elasticity||0.3));
-    if(o.type==='ellipse') ellipses.push(new Ellipse(+o.x||0,+o.y||0,+o.rx||50,+o.ry||30,+o.elasticity||0.3));
-    if(o.type==='rectCloud') rects.push(new RectCloud(+o.x||0,+o.y||0,+o.w||200,+o.h||60,+o.elasticity||0.3));
-    if(o.type==='discCloud') discs.push(new DiscCloud(+o.x||0,+o.y||0,+o.radius||100,+o.innerRadius||0,+o.elasticity||0.3));
+  stars=[]; discs=[]; rects=[]; particles=[];
+  const obj = cfg.objects || [];
+  for(const o of obj){
+    if(o.type==='star') stars.push(new Star(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0,+o.mass||1000,+o.radius||6));
+    if(o.type==='disc') discs.push(new Disc(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0,+o.radius||100,+o.innerRadius||0));
+    if(o.type==='rect') rects.push(new Rect(+o.x||0,+o.y||0,+o.vx||0,+o.vy||0,+o.width||100,+o.height||60));
   }
 
-  // default: if nothing provided, add a big rect cloud in center
-  if(discs.length===0 && rects.length===0 && lines.length===0 && ellipses.length===0){
-    discs.push(new DiscCloud(0, -150, Math.min(W,H)*0.25, 0, 0.3));
+  const regions=[];
+  for(const d of discs) regions.push({type:'disc',obj:d});
+  for(const r of rects) regions.push({type:'rect',obj:r});
+  if(regions.length===0){
+    discs.push(new Disc(W/2,H/2,0,0,Math.min(W,H)*0.4,0));
+    regions.push({type:'disc',obj:discs[discs.length-1]});
   }
 
-  const density = Math.max(0, parseFloat(densityInp.value)||0.3);
-  const GOLDEN = 2.3999632297;
+  const density = Math.max(0, parseFloat(densityInp.value) || 0.1);
+  const GOLDEN_ANGLE = 2.399963229728653;
+
+  for(const rgn of regions){
+    const o = rgn.obj;
+    let n;
+
+    if(rgn.type==='disc'){
+      const R=o.radius, R0=o.innerRadius||0;
+      const area = Math.PI*(R*R - R0*R0);
+      n = Math.max(1, Math.floor(area * density));
+    } else {
+      const Wrect=o.w, Hrect=o.h;
+      const area = Wrect * Hrect;
+      n = Math.max(1, Math.floor(area * density));
+    }
+
+
+    if(rgn.type==='disc'){
+      const R=o.radius, R0=o.innerRadius||0;
+      for(let k=0;k<n;k++){
+        const f = (k+0.5)/n;
+        const radial = Math.sqrt(f);
+        const r = R0 + radial*(R - R0);
+        const theta = k * GOLDEN_ANGLE;
+        particles.push({
+          x:o.x + Math.cos(theta)*r,
+          y:o.y + Math.sin(theta)*r,
+          vx:o.vx, vy:o.vy, ax:0, ay:0
+        });
+      }
+    } else {
+      const Wrect=o.w, Hrect=o.h;
+      const aspect = Math.max(1e-6, Wrect/Hrect);
+      let cols = Math.ceil(Math.sqrt(n * aspect));
+      let rows = Math.ceil(n / cols);
+      while(cols*(rows-1) >= n) rows--;
+
+      const cellW = Wrect/cols;
+      const cellH = Hrect/rows;
+
+      for(let k=0;k<n;k++){
+        const col = k % cols;
+        const row = Math.floor(k/cols);
+        particles.push({
+          x:o.x + (-Wrect/2 + (col+0.5)*cellW),
+          y:o.y + (-Hrect/2 + (row+0.5)*cellH),
+          vx:o.vx, vy:o.vy, ax:0, ay:0
+        });
+      }
+    }
+  }
+}
+
+// Physics
+function stepPhysics(dt){
+  const G = parseFloat(Ginp.value) || 1000;
+  const amax = parseFloat(amaxInp.value) || 2000;
+
+  for(let i=0;i<stars.length;i++){
+    const si=stars[i];
+    let ax=0, ay=0;
+    for(let j=0;j<stars.length;j++){
+      if(i===j) continue;
+      const sj=stars[j];
+      const dx=sj.x-si.x, dy=sj.y-si.y;
+      const r2=dx*dx+dy*dy+1e-6;
+      const r=Math.sqrt(r2);
+      const a=G*sj.mass/r2;
+      ax += a * dx/r;
+      ay += a * dy/r;
+    }
+    si.vx += ax*dt;
+    si.vy += ay*dt;
+  }
+
+  for(const s of stars){ s.x+=s.vx*dt; s.y+=s.vy*dt; }
+
+  for(const p of particles){
+    let ax=0, ay=0;
+    for(const s of stars){
+      const dx=s.x-p.x, dy=s.y-p.y;
+      const r2=dx*dx+dy*dy+0.0001;
+      const r=Math.sqrt(r2);
+      const a=G*s.mass/r2;
+      ax+=a*dx/r;
+      ay+=a*dy/r;
+    }
+    const am=Math.sqrt(ax*ax+ay*ay);
+    if(am>amax){ ax*=amax/am; ay*=amax/am; }
+
+    p.ax=ax; p.ay=ay;
+    p.vx+=ax*dt;
+    p.vy+=ay*dt;
+    p.x+=p.vx*dt;
+    p.y+=p.vy*dt;
+  }
+}
+
+// COLOR FUNCTIONS
+function colorAccelMagnitude(a, amax){
+  const t=Math.max(0,Math.min(1,a/amax));
+  const hue=240 - 240*t;
+  const sat=100 - 5*t;
+  const light=50 + 10*t;
+  return `hsl(${hue},${sat}%,${light}%)`;
+}
+
+function colorDirection(ax, ay, a, amax){
+  let ang = Math.atan2(ay, ax);
+  let hue = (ang * 180/Math.PI + 360) % 360;
+  let t = Math.max(0, Math.min(1, a/amax));
+  let light = 30 + 40*t;
+  return `hsl(${hue},100%,${light}%)`;
+}
+let lastTime = performance.now();
+let view={x:0,y:0,scale:1};
+let frames=0, accumTime=0;
+
+// NEW:
+let fps = 0;
+let fpsAccum = 0;
+let fpsFrames = 0;
+
+function render(now){
+  const rawdt=(now - lastTime)/1000; 
+  lastTime=now;
+
+  // --- FPS accumulation ---
+  fpsFrames++;
+  fpsAccum += rawdt;
+  if (fpsAccum >= 0.25) {
+    fps = fpsFrames / fpsAccum;
+    fpsFrames = 0;
+    fpsAccum = 0;
+  }
+
+  const targetDt=parseFloat(dtInp.value)||0.016;
+
+  if(!paused || stepOnce){
+    stepPhysics(targetDt);
+    if(stepOnce){ stepOnce=false; paused=true; }
+  }
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#000';
+  ctx.fillRect(0,0,W,H);
+
+  const s = W/(1000*view.scale);
+  const amax=parseFloat(amaxInp.value)||2000;
+  const colorMode = colorModeSel.value;
+  for(const p of particles){
+    const a=Math.sqrt(p.ax*p.ax + p.ay*p.ay);
+
+    if(colorMode === "accel"){
+      ctx.fillStyle = colorAccelMagnitude(a, amax);
+    } else {
+      ctx.fillStyle = colorDirection(p.ax, p.ay, a, amax);
+    }
+
+    const px=(p.x - view.x)*s + W/2;
+    const py=(p.y - view.y)*s + H/2;
+    const ix=px|0, iy=py|0;
+    if(ix<0||iy<0||ix>=W||iy>=H) continue;
+    ctx.fillRect(ix,iy,1,1);
+  }
+
+  for(const sObj of stars){
+    const sx=(sObj.x - view.x)*s + W/2;
+    const sy=(sObj.y - view.y)*s + H/2;
+    const sr=Math.max(1, sObj.radius*s);
+
+    ctx.beginPath(); 
+    ctx.fillStyle='#fff'; 
+    ctx.globalAlpha=0.9;
+    ctx.arc(sx,sy,sr,0,Math.PI*2); 
+    ctx.fill();
+    ctx.globalAlpha=1;
+
+    ctx.beginPath(); 
+    ctx.strokeStyle='rgba(255,255,255,0.08)';
+    ctx.arc(sx,sy,sObj.radius*4*s,0,Math.PI*2); 
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle='rgba(120,180,255,0.12)';
+  ctx.lineWidth=1;
 
   for(const d of discs){
-    const area = Math.PI*(d.r*d.r - (d.inner||0)*(d.inner||0));
-    const n = Math.max(1, Math.floor(area * density / 100)); // scale down to keep particles reasonable
-    for(let k=0;k<n;k++){
-      const f=(k+0.5)/n; const r = Math.sqrt(f)*(d.r-d.inner) + d.inner;
-      const th = k*GOLDEN;
-      particles.push({ x:d.x + Math.cos(th)*r, y:d.y + Math.sin(th)*r, vx:0, vy:0, elasticity:d.e });
+    const dx=(d.x - view.x)*s + W/2;
+    const dy=(d.y - view.y)*s + H/2;
+    ctx.beginPath(); 
+    ctx.arc(dx,dy,d.radius*s,0,Math.PI*2); 
+    ctx.stroke();
+    if(d.innerRadius>0){
+      ctx.beginPath(); 
+      ctx.arc(dx,dy,d.innerRadius*s,0,Math.PI*2); 
+      ctx.stroke();
     }
   }
 
   for(const r of rects){
-    const area = r.w*r.h;
-    const n = Math.max(1, Math.floor(area * density / 400));
-    const cols = Math.ceil(Math.sqrt(n * (r.w/r.h)));
-    const rows = Math.ceil(n / cols);
-    const cellW = r.w/cols, cellH=r.h/rows;
-    for(let k=0;k<n;k++){
-      const col=k%cols, row=Math.floor(k/cols);
-      particles.push({
-        x: r.x + (-r.w/2 + (col+0.5)*cellW),
-        y: r.y + (-r.h/2 + (row+0.5)*cellH),
-        vx:0, vy:0, elasticity: r.e
-      });
-    }
-  }
+    const cx=(r.x - view.x)*s + W/2;
+    const cy=(r.y - view.y)*s + H/2;
+    const wScaled=r.w*s, hScaled=r.h*s;
 
-  infoDiv.textContent = `seeded ${particles.length} particles`;
-}
-
-// ---------------------------
-// CCD utilities
-// - AABB sweep with radius expansion (exact in slab sense)
-// - hybrid sampling for segment/ellipse (sufficiently accurate if samples high)
-// ---------------------------
-function expandAABB(boxMinX,boxMinY, boxMaxX,boxMaxY, r){
-  return { minX: boxMinX - r, minY: boxMinY - r, maxX: boxMaxX + r, maxY: boxMaxY + r };
-}
-
-// point moving along p0 -> p1, check slab entry time [0,1] against expanded aabb
-function sweepAABB_t(p0x,p0y, vx,vy, box){
-  const EPS = 1e-9;
-  let tmin = 0, tmax = 1;
-  let normal = {x:0,y:0};
-
-  // X
-  if(Math.abs(vx) < EPS){
-    if(p0x < box.minX || p0x > box.maxX) return null;
-  } else {
-    const inv = 1 / vx;
-    let t1 = (box.minX - p0x) * inv;
-    let t2 = (box.maxX - p0x) * inv;
-    const enter = Math.min(t1,t2), exit = Math.max(t1,t2);
-    if(enter > tmin){
-      tmin = enter;
-      normal = { x: t1 > t2 ? 1 : -1, y:0 };
-    }
-    tmax = Math.min(tmax, exit);
-    if(tmin > tmax) return null;
-  }
-
-  // Y
-  if(Math.abs(vy) < EPS){
-    if(p0y < box.minY || p0y > box.maxY) return null;
-  } else {
-    const inv = 1 / vy;
-    let t1 = (box.minY - p0y) * inv;
-    let t2 = (box.maxY - p0y) * inv;
-    const enter = Math.min(t1,t2), exit = Math.max(t1,t2);
-    if(enter > tmin){
-      tmin = enter;
-      normal = { x:0, y: t1 > t2 ? 1 : -1 };
-    }
-    tmax = Math.min(tmax, exit);
-    if(tmin > tmax) return null;
-  }
-
-  if(tmin < 0 || tmin > 1) return null;
-  return { t: tmin, normal };
-}
-
-// numeric sample-based sweep for segment & ellipse
-// returns earliest hit {t, normal, kind, obj} or null
-function sampleSweepForSegmentOrEllipse(p0x,p0y, dx,dy, radius, samples){
-  // samples: number of sample points to check along the path (will find intervals of penetration then binary refine)
-  const hits = [];
-  let prevInside = false;
-  let prevD = null;
-  let prevT = 0;
-
-  function checkAt(t){
-    const x = p0x + dx*t, y = p0y + dy*t;
-    // check lines
-    for(const L of lines){
-      const c = closestPointOnSegment(x,y, L.x1, L.y1, L.x2, L.y2);
-      const dist = Math.hypot(x - c.x, y - c.y);
-      if(dist <= radius + 1e-6) return {kind:'line', obj:L, cx:c.x, cy:c.y, dist, t};
-    }
-    // check ellipses
-    for(const E of ellipses){
-      const rx=E.rx, ry=E.ry;
-      const nx = (x - E.x)/rx, ny = (y - E.y)/ry;
-      const k = nx*nx + ny*ny;
-      if(k <= 1 + 1e-9) return {kind:'ellipse', obj:E, k, t, x, y};
-    }
-    return null;
-  }
-
-  const N = Math.max(3, samples||12);
-  let lastHit = null;
-  // coarse scan to find first interval where penetration occurs
-  for(let i=0;i<=N;i++){
-    const t = i/N;
-    const r = checkAt(t);
-    if(r && lastHit===null){
-      // found first sample inside -> binary refine on [prevT, t]
-      let a = Math.max(0, (i-1)/N), b = t;
-      for(let iter=0; iter<12; iter++){
-        const m=(a+b)/2;
-        const rm = checkAt(m);
-        if(rm) b = m; else a = m;
-      }
-      const tt = b;
-      const refined = checkAt(tt);
-      return refined ? { t: tt, ...refined } : null;
-    }
-  }
-  return null;
-}
-
-// ---------------------------
-// Single particle movement with hybrid CCD
-// - tries exact slab CCD against AABBs (rect obstacles and screen bounds) using expanded AABB
-// - uses sample-based CCD for lines and ellipses (coarse sample + binary refine)
-// - if multiple contacts: choose earliest t, move to contact, reflect using elasticity, continue with remaining fraction
-// - limit iterations per particle to avoid stalling
-// ---------------------------
-function moveParticleHybrid(p, dt){
-  const G = parseFloat(Ginp.value)||900;
-  const radius = parseFloat(pradInp.value)||2;
-  const maxIter = Math.max(1, parseInt(maxStepsInp.value)||4);
-  const samples = Math.max(6, parseInt(ccdSamplesInp.value)||12);
-
-  // integrate velocity (semi-implicit)
-  p.vy += G * dt;
-  const totalDx = p.vx * dt;
-  const totalDy = p.vy * dt;
-
-  let remainingX = totalDx, remainingY = totalDy;
-  let remainingFraction = 1;
-
-  for(let iter=0; iter<maxIter; iter++){
-    if(Math.hypot(remainingX, remainingY) < 1e-6) break;
-
-    // find earliest collision among:
-    // - rects (AABB) (use sweepAABB_t with expanded rect)
-    // - bounding screen edges (as AABB)
-    // - lines & ellipses (sample based)
-
-    let earliest = 1.0;
-    let hitNormal = null;
-    let hitObj = null;
-    let hitKind = null;
-
-    // AABB rectangles (rects)
-    for(const R of rects){
-      const minX = R.x - R.w/2, minY = R.y - R.h/2;
-      const maxX = R.x + R.w/2, maxY = R.y + R.h/2;
-      const expanded = expandAABB(minX,minY, maxX,maxY, radius);
-      const res = sweepAABB_t(p.x, p.y, remainingX, remainingY, expanded);
-      if(res && res.t < earliest){
-        earliest = res.t;
-        hitNormal = res.normal;
-        hitObj = R; hitKind='rect';
-      }
-    }
-
-    // Screen bounds as AABB (prevent leaving)
-    const screenBox = expandAABB(-W/2 + view.x, -H/2 + view.y, W/2 + view.x, H/2 + view.y, radius);
-    const resScreen = sweepAABB_t(p.x, p.y, remainingX, remainingY, screenBox);
-    if(resScreen && resScreen.t < earliest){
-      earliest = resScreen.t;
-      hitNormal = resScreen.normal;
-      hitObj = null; hitKind='screen';
-    }
-
-    // sample-based sweep for lines & ellipses
-    const sampHit = sampleSweepForSegmentOrEllipse(p.x, p.y, remainingX, remainingY, radius, samples);
-    if(sampHit && sampHit.t < earliest){
-      earliest = sampHit.t;
-      if(sampHit.kind === 'line'){
-        // compute normal from segment closest point
-        const L = sampHit.obj;
-        const cp = closestPointOnSegment(p.x + remainingX*earliest, p.y + remainingY*earliest, L.x1, L.y1, L.x2, L.y2);
-        const nx = (p.x + remainingX*earliest - cp.x);
-        const ny = (p.y + remainingY*earliest - cp.y);
-        const nlen = Math.hypot(nx,ny) || 1;
-        hitNormal = { x: nx/nlen, y: ny/nlen };
-        hitObj = L; hitKind='line';
-      } else if(sampHit.kind === 'ellipse'){
-        // approximate normal for ellipse at contact: gradient of implicit function
-        const E = sampHit.obj;
-        const cx = p.x + remainingX*earliest, cy = p.y + remainingY*earliest;
-        const nx = (cx - E.x)/(E.rx*E.rx);
-        const ny = (cy - E.y)/(E.ry*E.ry);
-        const nlen = Math.hypot(nx,ny) || 1;
-        hitNormal = { x: nx/nlen, y: ny/nlen };
-        hitObj = E; hitKind='ellipse';
-      }
-    }
-
-    if(!hitNormal){
-      // no collision in remaining motion: finish move
-      p.x += remainingX;
-      p.y += remainingY;
-      break;
-    }
-
-    // clamp earliest into [0,1]
-    earliest = clamp(earliest, 0, 1);
-
-    // move to contact (slightly back off by eps to avoid re-penetration)
-    const eps = 1e-4;
-    const moveX = remainingX * earliest;
-    const moveY = remainingY * earliest;
-    p.x += moveX;
-    p.y += moveY;
-
-    // reflect velocity around normal with elasticity = particle.elasticity * object.elasticity (if any)
-    let objE = 1.0;
-    if(hitKind==='line' || hitKind==='ellipse') objE = hitObj.e || 1.0;
-    if(hitKind==='rect') objE = hitObj.e || 1.0;
-    if(hitKind==='screen') objE = 0.2;
-
-    const e = clamp((p.elasticity !== undefined ? p.elasticity : 0.5) * objE, 0, 1);
-
-    // compute vel before reflection (we must use current velocities)
-    // reflect velocity vector across normal
-    const vn = dot(p.vx, p.vy, hitNormal.x, hitNormal.y);
-    if(vn < 0){
-      // reflect and apply elasticity
-      p.vx = p.vx - (1 + e) * vn * hitNormal.x;
-      p.vy = p.vy - (1 + e) * vn * hitNormal.y;
-    }
-
-    // small positional nudge along normal to avoid sticking
-    p.x += hitNormal.x * eps;
-    p.y += hitNormal.y * eps;
-
-    // remaining motion after impact
-    const leftoverFrac = 1 - earliest;
-    remainingX = remainingX * leftoverFrac;
-    remainingY = remainingY * leftoverFrac;
-
-    // remove component along normal from leftover (slide)
-    const proj = dot(remainingX, remainingY, hitNormal.x, hitNormal.y);
-    remainingX = remainingX - proj * hitNormal.x;
-    remainingY = remainingY - proj * hitNormal.y;
-
-    // continue iterating with reduced remaining
-  }
-}
-
-// ---------------------------
-// Rendering and main loop
-// ---------------------------
-let lastTime = performance.now();
-let view = { x:0, y:0, scale:1 };
-let fps=0, fpsAccum=0, fpsFrames=0;
-
-function render(now){
-  const rawdt = (now - lastTime) / 1000;
-  lastTime = now;
-
-  // fps
-  fpsFrames++; fpsAccum += rawdt;
-  if(fpsAccum >= 0.25){ fps = fpsFrames / fpsAccum; fpsFrames=0; fpsAccum=0; }
-
-  const targetDt = parseFloat(dtInp.value) || 0.016;
-
-  if(!paused || stepOnce){
-    // step
-    // move each particle with hybrid CCD
-    for(const p of particles){
-      moveParticleHybrid(p, targetDt);
-    }
-    if(stepOnce){ stepOnce=false; paused=true; }
-  }
-
-  // draw
-  ctx.clearRect(0,0,W,H);
-  ctx.fillStyle = '#001';
-  ctx.fillRect(0,0,W,H);
-
-  const s = W/(1000 * view.scale);
-
-  // particles
-  const prad = parseFloat(pradInp.value) || 2;
-  for(const p of particles){
-    const px = (p.x - view.x) * s + W/2;
-    const py = (p.y - view.y) * s + H/2;
-    ctx.fillStyle = 'white';
-    ctx.fillRect(px|0, py|0, Math.max(1,prad*s|0), Math.max(1,prad*s|0));
-  }
-
-  // draw lines
-  ctx.strokeStyle = 'rgba(200,200,255,0.25)';
-  ctx.lineWidth = 1;
-  for(const L of lines){
     ctx.beginPath();
-    ctx.moveTo((L.x1-view.x)*s + W/2, (L.y1-view.y)*s + H/2);
-    ctx.lineTo((L.x2-view.x)*s + W/2, (L.y2-view.y)*s + H/2);
+    ctx.rect(cx-wScaled/2, cy-hScaled/2, wScaled, hScaled);
     ctx.stroke();
   }
 
-  // draw rect outlines
-  ctx.strokeStyle = 'rgba(120,255,180,0.14)';
-  for(const R of rects){
-    const cx = (R.x - view.x)*s + W/2, cy = (R.y - view.y)*s + H/2;
-    const w = R.w * s, h = R.h * s;
-    ctx.strokeRect(cx - w/2, cy - h/2, w, h);
+  frames++; 
+  accumTime+=rawdt;
+  if(accumTime>0.5){
+    infoDiv.textContent =
+      `particles: ${particles.length}\nstars: ${stars.length}  dt: ${targetDt}  G: ${Ginp.value}`;
+    frames=0; 
+    accumTime=0;
   }
 
-  // draw ellipses
-  ctx.strokeStyle = 'rgba(255,190,120,0.12)';
-  for(const E of ellipses){
-    ctx.beginPath();
-    ctx.ellipse((E.x-view.x)*s + W/2, (E.y-view.y)*s + H/2, E.rx*s, E.ry*s, 0, 0, Math.PI*2);
-    ctx.stroke();
-  }
-
-  // HUD
+  // --------------------------
+  // OVERLAY: FPS + View Bounds
+  // --------------------------
   ctx.save();
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.fillStyle='white';
-  ctx.font='13px monospace';
-  ctx.fillText(`particles: ${particles.length}  FPS: ${fps.toFixed(1)}`, 8, 8);
+  ctx.setTransform(1,0,0,1,0,0); // screen space
+  ctx.fillStyle = "white";
+  ctx.font = "14px monospace";
+  ctx.textBaseline = "top";
+
+  // Calculate world bounds displayed on screen
+  const left   = (0 - W/2)/s + view.x;
+  const right  = (W - W/2)/s + view.x;
+  const top    = (0 - H/2)/s + view.y;
+  const bottom = (H - H/2)/s + view.y;
+
+  ctx.fillText(`FPS: ${fps.toFixed(1)}`, 10, 10);
+  ctx.fillText(
+    `x: ${left.toFixed(0)}, ${right.toFixed(0)};  y: ${top.toFixed(0)}, ${bottom.toFixed(0)}`,
+    10, 
+    28
+  );
   ctx.restore();
-
-  // info panel
-  infoDiv.textContent = `particles: ${particles.length}\nlines: ${lines.length}  ellipses: ${ellipses.length}  rectClouds: ${rects.length}  discClouds: ${discs.length}\nmaxSteps:${maxStepsInp.value}  ccdSamples:${ccdSamplesInp.value}`;
-
   requestAnimationFrame(render);
 }
 
-// ---------------------------
-// Input handlers + pan/zoom
-// ---------------------------
-applyBtn.addEventListener('click', ()=>{
-  try{ seedFromConfig(JSON.parse(jsonArea.value)); } catch(e){ alert('JSON parse error: '+e.message); }
-});
-try{ seedFromConfig(JSON.parse(jsonArea.value)); } catch(e){ console.error('seed parse', e); }
 
+applyBtn.addEventListener('click',()=>{
+  let cfg;
+  try{ cfg=JSON.parse(jsonArea.value); }
+  catch(e){ alert('JSON parse error: '+e.message); return; }
+  seedFromConfig(cfg);
+});
+
+try{ seedFromConfig(JSON.parse(jsonArea.value)); }catch(e){console.error(e);}
+
+requestAnimationFrame(render);
+
+// pan + zoom
 let dragging=false, lastMouse=null;
 canvas.addEventListener('mousedown',(e)=>{ dragging=true; lastMouse=[e.clientX,e.clientY]; });
 window.addEventListener('mouseup',()=>{ dragging=false; lastMouse=null; });
-window.addEventListener('mousemove',(e)=>{ if(!dragging) return; const dx=e.clientX-lastMouse[0], dy=e.clientY-lastMouse[1]; view.x -= dx; view.y -= dy; lastMouse=[e.clientX,e.clientY]; });
-canvas.addEventListener('wheel',(e)=>{ e.preventDefault(); const sc=Math.exp(-e.deltaY*0.001); view.scale *= sc; });
-
-// ---------------------------
-// Start
-// ---------------------------
-requestAnimationFrame(render);
+window.addEventListener('mousemove',(e)=>{
+  if(!dragging) return;
+  const dx=e.clientX-lastMouse[0], dy=e.clientY-lastMouse[1];
+  view.x -= dx; view.y -= dy;
+  lastMouse=[e.clientX,e.clientY];
+});
+canvas.addEventListener('wheel',(e)=>{
+  e.preventDefault();
+  const sc = Math.exp(-e.deltaY*0.001);
+  view.scale *= sc;
+});
 </script>
 </body>
 </html>
