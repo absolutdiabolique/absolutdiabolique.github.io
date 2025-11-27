@@ -1,6 +1,6 @@
 {
   "objects": [
     { "type":"star", "x":0, "y":0, "vx":0, "vy":0, "mass":8000, "radius":8 },
-    { "type":"disc", "x":300, "y":0, "vx":0.0, "vy":50, "radius":140, "innerRadius":0 }
+    { "type":"disc", "x":300, "y":0, "vx":0.0, "vy":50, "radius":140, "innerRadius":30 }
   ]
 }
