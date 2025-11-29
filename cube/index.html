@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CSS 3D Cube with iframes — drag to rotate</title>
+<style>
+  :root{
+    --cube-size: 420px;     /* change to resize cube */
+    --face-bg: #111827;
+    --gutter: 24px;
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    background: linear-gradient(180deg,#0b1220 0%, #071026 100%);
+    color:#fff;
+    font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    overflow:hidden;
+    user-select:none;
+    touch-action: none;
+  }
+
+  /* Stage / perspective container */
+  .stage {
+    width:100%;
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    perspective:1200px;
+    -webkit-perspective:1200px;
+    position:relative;
+  }
+
+  /* Draggable overlay instruction area (click-and-drag works on this region) */
+  .drag-hint {
+    position:absolute;
+    left:var(--gutter);
+    top:var(--gutter);
+    padding:8px 12px;
+    background: rgba(255,255,255,0.04);
+    border-radius:8px;
+    font-size:13px;
+    color:rgba(255,255,255,0.9);
+    z-index:50;
+    pointer-events:none; /* doesn't block drag events */
+  }
+
+  /* Scene containing the cube */
+  .scene {
+    width: calc(var(--cube-size) + 2px);
+    height: calc(var(--cube-size) + 2px);
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+    position:relative;
+  }
+
+  /* Cube wrapper for rotation */
+  .cube {
+    width:var(--cube-size);
+    height:var(--cube-size);
+    position:relative;
+    margin:auto;
+    transform-style: preserve-3d;
+    -webkit-transform-style: preserve-3d;
+    transition: transform 200ms cubic-bezier(.2,.9,.2,1);
+    will-change: transform;
+    box-shadow: 0 20px 50px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+    border-radius:8px;
+    overflow:visible;
+  }
+
+  .face {
+    position:absolute;
+    width:100%;
+    height:100%;
+    left:0;
+    top:0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    overflow:hidden;
+    border-radius:6px;
+    box-sizing:border-box;
+    background:var(--face-bg);
+    border:1px solid rgba(255,255,255,0.03);
+  }
+
+  /* iframes fill each face fully */
+  .face iframe{
+    width:100%;
+    height:100%;
+    border:0;
+    display:block;
+    /* allow pointer interactions inside the iframes */
+  }
+
+  /* Place faces in 3D space */
+  /* distance from center to face (half cube size) */
+  .face.front  { transform: translateZ(calc(var(--cube-size) / 2)); }
+  .face.back   { transform: rotateY(180deg) translateZ(calc(var(--cube-size) / 2)); }
+  .face.right  { transform: rotateY(90deg) translateZ(calc(var(--cube-size) / 2)); }
+  .face.left   { transform: rotateY(-90deg) translateZ(calc(var(--cube-size) / 2)); }
+  .face.top    { transform: rotateX(90deg) translateZ(calc(var(--cube-size) / 2)); transform-origin: center; }
+  .face.bottom { transform: rotateX(-90deg) translateZ(calc(var(--cube-size) / 2)); transform-origin: center; }
+
+  /* Small responsive adjustments */
+  @media (max-width:600px) {
+    :root { --cube-size: 300px; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="drag-hint" id="hint">Drag background to rotate</div>
+
+    <div class="scene">
+      <div class="cube" id="cube" aria-hidden="false" role="application">
+        <div class="face front"><iframe src="https://chatgpt.com" title="face-front"></iframe></div>
+        <div class="face back"><iframe src="https://chatgpt.com" title="face-back"></iframe></div>
+        <div class="face right"><iframe src="https://chatgpt.com" title="face-right"></iframe></div>
+        <div class="face left"><iframe src="https://chatgpt.com" title="face-left"></iframe></div>
+        <div class="face top"><iframe src="https://chatgpt.com" title="face-top"></iframe></div>
+        <div class="face bottom"><iframe src="https://chatgpt.com" title="face-bottom"></iframe></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/*
+ Drag-to-rotate implementation.
+ Drag on anything that does NOT capture pointer events (the background area).
+ Iframes themselves will receive pointer events and thus will not rotate while dragging over them.
+ Supports mouse and touch via pointer events.
+*/
+
+(function(){
+  const cube = document.getElementById('cube');
+  const stage = document.getElementById('stage');
+
+  // rotation state (degrees)
+  let rotX = -12;   // starting tilt
+  let rotY = -25;
+  let isPointerDown = false;
+  let lastX = 0, lastY = 0;
+  let velocityX = 0, velocityY = 0;
+  let raf = null;
+  let isDragging = false;
+
+  const friction = 0.92;   // inertia friction after release
+  const speed = 0.4;       // drag sensitivity
+  const restoreTransitionMs = 300;
+
+  // apply transform to cube
+  function applyTransform(){
+    cube.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+  }
+
+  applyTransform();
+
+  // Pointer handlers attached to the stage (background). The stage covers the whole window.
+  stage.addEventListener('pointerdown', (e) => {
+    // if user pressed on an iframe, browsers will route pointerdown to iframe and not the stage,
+    // so this event won't fire when starting the drag over an iframe. That is intended behavior.
+    isPointerDown = true;
+    isDragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    velocityX = velocityY = 0;
+    cube.style.transition = 'none';
+    // capture pointer so we continue receiving move/up
+    try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+
+  stage.addEventListener('pointermove', (e) => {
+    if (!isPointerDown) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+
+    // Y motion maps to rotationX (tilt up/down), X motion maps to rotationY (spin left/right)
+    rotX = clamp(rotX - dy * speed, -90, 90);
+    rotY = rotY + dx * speed;
+
+    velocityX = dx; velocityY = dy;
+
+    applyTransform();
+  });
+
+  stage.addEventListener('pointerup', (e) => {
+    isPointerDown = false;
+    isDragging = false;
+    // begin inertia
+    cube.style.transition = '';
+    startInertia();
+    try { e.target.releasePointerCapture(e.pointerId); } catch (err) {}
+  });
+
+  stage.addEventListener('pointercancel', (e) => {
+    isPointerDown = false;
+    isDragging = false;
+    startInertia();
+  });
+
+  // If pointer leaves window, behave as release
+  window.addEventListener('blur', () => { if (isPointerDown) { isPointerDown = false; startInertia(); } });
+
+  function startInertia(){
+    cancelAnimationFrame(raf);
+    function step(){
+      // apply friction to velocities and update rotation
+      velocityX *= friction;
+      velocityY *= friction;
+
+      if (Math.abs(velocityX) < 0.01 && Math.abs(velocityY) < 0.01) {
+        cancelAnimationFrame(raf);
+        return;
+      }
+
+      rotX = clamp(rotX - velocityY * speed, -90, 90);
+      rotY = rotY + velocityX * speed;
+      applyTransform();
+      raf = requestAnimationFrame(step);
+    }
+    raf = requestAnimationFrame(step);
+  }
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  // allow keyboard arrows for small nudges (accessibility)
+  window.addEventListener('keydown', (e) => {
+    const step = 6;
+    if (e.key === 'ArrowLeft') { rotY -= step; applyTransform(); }
+    if (e.key === 'ArrowRight'){ rotY += step; applyTransform(); }
+    if (e.key === 'ArrowUp')   { rotX -= step; applyTransform(); }
+    if (e.key === 'ArrowDown') { rotX += step; applyTransform(); }
+  });
+
+  // prevent accidental selection when dragging
+  stage.addEventListener('dragstart', (e) => e.preventDefault());
+})();
+</script>
+<script>
+(function(){
+  const cube = document.getElementById('cube');
+  const stage = document.getElementById('stage');
+
+  let rotX = -12;
+  let rotY = -25;
+
+  let isPointerDown = false;
+  let lastX = 0, lastY = 0;
+
+  // velocities (deg/frame)
+  let vx = 0, vy = 0;
+
+  // inertia tuning
+  const dragSensitivity = 0.35;   // rotation per pixel dragged
+  const friction = 0.94;          // closer to 1 = longer inertia
+  const minStop = 0.015;          // velocity threshold to stop
+
+  let raf = null;
+
+  function applyTransform(){
+    cube.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+  }
+
+  applyTransform();
+
+  stage.addEventListener('pointerdown', (e) => {
+    isPointerDown = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    vx = vy = 0;
+
+    cube.style.transition = 'none';
+
+    try { e.target.setPointerCapture(e.pointerId); } catch(_){}
+  });
+
+  stage.addEventListener('pointermove', (e) => {
+    if (!isPointerDown) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+
+    rotX = clamp(rotX - dy * dragSensitivity, -90, 90);
+    rotY = rotY + dx * dragSensitivity;
+
+    // store velocity for inertia
+    vx = dx * dragSensitivity;
+    vy = dy * dragSensitivity;
+
+    applyTransform();
+  });
+
+  stage.addEventListener('pointerup', (e) => {
+    isPointerDown = false;
+    try { e.target.releasePointerCapture(e.pointerId); } catch(_){}
+    startInertia();
+  });
+
+  stage.addEventListener('pointercancel', () => {
+    isPointerDown = false;
+    startInertia();
+  });
+
+  window.addEventListener('blur', () => {
+    if (isPointerDown) {
+      isPointerDown = false;
+      startInertia();
+    }
+  });
+
+  function startInertia(){
+    cancelAnimationFrame(raf);
+
+    function step(){
+      // decay velocity
+      vx *= friction;
+      vy *= friction;
+
+      // stop if very slow
+      if (Math.abs(vx) < minStop && Math.abs(vy) < minStop) {
+        cancelAnimationFrame(raf);
+        return;
+      }
+
+      rotX = clamp(rotX - vy, -90, 90);
+      rotY = rotY + vx;
+
+      applyTransform();
+      raf = requestAnimationFrame(step);
+    }
+
+    raf = requestAnimationFrame(step);
+  }
+
+  function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+})();
+</script>
+
+</body>
+</html>
