@@ -1,31 +1,132 @@
 <!DOCTYPE html>
 <html>
 <head>
+
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
 <style>
   html, body { 
     margin: 0;
     padding: 0;
     width: 100%;
     height: 100%;
+    background: #0b1220;
+    color: #e6eef8;
   }
+
   .ui {
-    margin: auto;
-    border: 1px solid black;
+    position: fixed;
+    top: 5%;
+    left: 5%;
     width: 90%;
     height: 10%;
+    background: #173063;
+    border: 1px solid black;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 16px;
+    box-sizing: border-box;
+    font-size: 14px;
   }
-  textarea {
-    display: block;
+
+  select, button {
+    background: #0b1220;
+    color: #e6eef8;
+    border: 1px solid #000;
+    border-radius: 6px;
+    padding: 4px 8px;
+  }
+
+  /* WRAPPER for gradient border */
+  .ta-wrap {
     position: fixed;
     width: 90%;
-    height: 80%;
+    height: 75%;
     left: 5%;
-    top: 15%;
+    top: 20%;
+    border-radius: 12px;
   }
+
+  /* Textarea styling */
+  .ta-wrap textarea {
+    width: 100%;
+    height: 100%;
+    background: #173063;
+    color: #e6eef8;
+    border: 1px solid black;
+    border-radius: 12px;
+    resize: none;
+    padding: 20px;
+    box-sizing: border-box;
+    font-size: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Gradient border when focused */
+  .ta-wrap:focus-within::before {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 14px;
+    background: linear-gradient(90deg, magenta, #66ccff, magenta);
+    background-size: 300% 300%;
+    animation: gradientAnim 3s linear infinite;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  @keyframes gradientAnim {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
 </style>
 </head>
+
 <body>
-  <div class='ui'></div>
-  <textarea></textarea>
+
+  <div class="ui">
+    <select id="fontSelect">
+      <option value="Times New Roman">Times New Roman</option>
+      <option value="Arial">Arial</option>
+      <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
+      <option value="Georgia">Georgia</option>
+      <option value="'Courier New'">Courier New</option>
+    </select>
+
+    <button id="decrease">A-</button>
+    <button id="increase">A+</button>
+  </div>
+
+  <div class="ta-wrap">
+    <textarea id="editor"></textarea>
+  </div>
+
+<script>
+  const editor = document.getElementById('editor');
+  const fontSelect = document.getElementById('fontSelect');
+  const inc = document.getElementById('increase');
+  const dec = document.getElementById('decrease');
+
+  fontSelect.addEventListener('change', () => {
+    editor.style.fontFamily = fontSelect.value;
+  });
+
+  inc.addEventListener('click', () => {
+    const size = parseInt(window.getComputedStyle(editor).fontSize, 10);
+    editor.style.fontSize = (size + 2) + 'px';
+  });
+
+  dec.addEventListener('click', () => {
+    const size = parseInt(window.getComputedStyle(editor).fontSize, 10);
+    editor.style.fontSize = Math.max(size - 2, 6) + 'px';
+  });
+</script>
+
 </body>
 </html>
