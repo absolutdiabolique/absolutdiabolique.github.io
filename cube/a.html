@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CSS 3D Cube with iframes — random background</title>
+<style>
+  :root{
+    --cube-size: 420px;
+    --face-bg: #111827;
+    --gutter: 24px;
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    overflow:hidden;
+    user-select:none;
+    touch-action:none;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+
+  .stage {
+    width:100%;
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    perspective:1200px;
+  }
+
+  .drag-hint {
+    position:absolute;
+    left:var(--gutter);
+    top:var(--gutter);
+    padding:8px 12px;
+    background: rgba(255,255,255,0.08);
+    border-radius:8px;
+    font-size:13px;
+    color:#fff;
+    z-index:50;
+    pointer-events:none;
+  }
+
+  .scene {
+    width: calc(var(--cube-size) + 2px);
+    height: calc(var(--cube-size) + 2px);
+    transform-style: preserve-3d;
+    position:relative;
+  }
+
+  .cube {
+    width:var(--cube-size);
+    height:var(--cube-size);
+    position:relative;
+    transform-style: preserve-3d;
+    will-change: transform;
+    border-radius:8px;
+  }
+
+  .face {
+    position:absolute;
+    width:100%;
+    height:100%;
+    left:0;
+    top:0;
+    backface-visibility:hidden;
+    overflow:hidden;
+    border-radius:6px;
+  }
+
+  .face iframe {
+    width:100%;
+    height:100%;
+    border:0;
+  }
+
+  .face.front  { transform: translateZ(calc(var(--cube-size) / 2)); }
+  .face.back   { transform: rotateY(180deg) translateZ(calc(var(--cube-size) / 2)); }
+  .face.right  { transform: rotateY(90deg) translateZ(calc(var(--cube-size) / 2)); }
+  .face.left   { transform: rotateY(-90deg) translateZ(calc(var(--cube-size) / 2)); }
+  .face.top    { transform: rotateX(90deg) translateZ(calc(var(--cube-size) / 2)); }
+  .face.bottom { transform: rotateX(-90deg) translateZ(calc(var(--cube-size) / 2)); }
+
+  @media (max-width:600px) {
+    :root { --cube-size: 300px; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="drag-hint">Drag to rotate</div>
+
+    <div class="scene">
+      <div class="cube" id="cube">
+        <div class="face front"><iframe src="https://chatgpt.com"></iframe></div>
+        <div class="face back"><iframe src="https://chatgpt.com"></iframe></div>
+        <div class="face right"><iframe src="https://chatgpt.com"></iframe></div>
+        <div class="face left"><iframe src="https://chatgpt.com"></iframe></div>
+        <div class="face top"><iframe src="https://chatgpt.com"></iframe></div>
+        <div class="face bottom"><iframe src="https://chatgpt.com"></iframe></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* Random background color */
+(function(){
+  const r = Math.floor(Math.random()*255);
+  const g = Math.floor(Math.random()*255);
+  const b = Math.floor(Math.random()*255);
+  document.body.style.background = `rgb(${r},${g},${b})`;
+})();
+
+/* Drag + inertia rotation */
+(function(){
+  const cube = document.getElementById('cube');
+  const stage = document.getElementById('stage');
+
+  let rotX = -12;
+  let rotY = -25;
+
+  let isPointerDown = false;
+  let lastX = 0, lastY = 0;
+
+  let vx = 0, vy = 0;
+
+  const dragSensitivity = 0.35;
+  const friction = 0.94;
+  const minStop = 0.015;
+
+  let raf = null;
+
+  function applyTransform(){
+    cube.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+  }
+
+  applyTransform();
+
+  stage.addEventListener('pointerdown', (e) => {
+    isPointerDown = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    vx = vy = 0;
+    cube.style.transition = 'none';
+    try { e.target.setPointerCapture(e.pointerId); } catch(_){}
+  });
+
+  stage.addEventListener('pointermove', (e) => {
+    if (!isPointerDown) return;
+
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+
+    lastX = e.clientX;
+    lastY = e.clientY;
+
+    rotX = clamp(rotX - dy * dragSensitivity, -90, 90);
+    rotY = rotY + dx * dragSensitivity;
+
+    vx = dx * dragSensitivity;
+    vy = dy * dragSensitivity;
+
+    applyTransform();
+  });
+
+  stage.addEventListener('pointerup', (e) => {
+    isPointerDown = false;
+    try { e.target.releasePointerCapture(e.pointerId); } catch(_){}
+    startInertia();
+  });
+
+  stage.addEventListener('pointercancel', () => {
+    isPointerDown = false;
+    startInertia();
+  });
+
+  window.addEventListener('blur', () => {
+    if (isPointerDown) {
+      isPointerDown = false;
+      startInertia();
+    }
+  });
+
+  function startInertia(){
+    cancelAnimationFrame(raf);
+
+    function step(){
+      vx *= friction;
+      vy *= friction;
+
+      if (Math.abs(vx) < minStop && Math.abs(vy) < minStop) {
+        cancelAnimationFrame(raf);
+        return;
+      }
+
+      rotX = clamp(rotX - vy, -90, 90);
+      rotY = rotY + vx;
+
+      applyTransform();
+      raf = requestAnimationFrame(step);
+    }
+
+    raf = requestAnimationFrame(step);
+  }
+
+  function clamp(v, min, max){
+    return Math.max(min, Math.min(max, v));
+  }
+})();
+</script>
+</body>
+</html>
