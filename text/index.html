@@ -40,9 +40,9 @@
     border: 1px solid #000;
     border-radius: 6px;
     padding: 4px 8px;
+    cursor: pointer;
   }
 
-  /* Full container with 3D transform support */
   .ta-container {
     position: fixed;
     width: 90%;
@@ -52,13 +52,14 @@
     transform-style: preserve-3d;
     transform-origin: center center;
     cursor: grab;
+    transition: transform 0.6s;
   }
 
   .ta-container:active {
     cursor: grabbing;
   }
 
-  /* Wrapper for gradient border */
+  /* Front and Back wrapper */
   .ta-wrap {
     position: relative;
     width: 100%;
@@ -67,39 +68,39 @@
     transform-style: preserve-3d;
   }
 
-  .ta-wrap textarea {
+  .ta-front, .ta-back {
+    position: absolute;
     width: 100%;
     height: 100%;
+    border-radius: 12px;
+    backface-visibility: hidden;
+    transform-style: preserve-3d;
+  }
+
+  .ta-front {
     background: #173063;
     color: #e6eef8;
     border: 1px solid black;
-    border-radius: 12px;
+  }
+
+  .ta-back {
+    background: #ffffff;
+    color: #0b1220;
+    border: 1px solid black;
+    transform: rotateY(180deg); /* flip backside */
+  }
+
+  textarea {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    color: inherit;
+    border: none;
     resize: none;
     padding: 20px;
     box-sizing: border-box;
     font-size: 16px;
     font-family: inherit;
-    position: relative;
-    z-index: 2;
-    transform-style: preserve-3d;
-  }
-
-  .ta-wrap:focus-within::before {
-    content: "";
-    position: absolute;
-    inset: -3px;
-    border-radius: 14px;
-    background: linear-gradient(90deg, magenta, #66ccff, magenta);
-    background-size: 300% 300%;
-    animation: gradientAnim 3s linear infinite;
-    z-index: 1;
-    pointer-events: none;
-  }
-
-  @keyframes gradientAnim {
-    0%   { background-position: 0% 50%; }
-    50%  { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
   }
 
   /* Rotator group (handle) */
@@ -153,13 +154,21 @@
 
     <button id="decrease">A-</button>
     <button id="increase">A+</button>
+    <button id="flip">Flip</button>
   </div>
 
   <div class="ta-container" id="taContainer">
 
-    <!-- TEXTAREA -->
     <div class="ta-wrap" id="taWrap">
-      <textarea id="editor"></textarea>
+      <!-- FRONT -->
+      <div class="ta-front">
+        <textarea id="editorFront" placeholder="Front side..."></textarea>
+      </div>
+
+      <!-- BACK -->
+      <div class="ta-back">
+        <textarea id="editorBack" placeholder="Back side..."></textarea>
+      </div>
     </div>
 
     <!-- Handle + connector -->
@@ -171,35 +180,47 @@
   </div>
 
 <script>
-  const editor = document.getElementById('editor');
+  const editorFront = document.getElementById('editorFront');
+  const editorBack = document.getElementById('editorBack');
   const fontSelect = document.getElementById('fontSelect');
   const inc = document.getElementById('increase');
   const dec = document.getElementById('decrease');
+  const flipBtn = document.getElementById('flip');
+  const container = document.getElementById('taContainer');
+
+  let rotX = 0, rotY = 0, flipped = false;
 
   fontSelect.addEventListener('change', () => {
-    editor.style.fontFamily = fontSelect.value;
+    editorFront.style.fontFamily = fontSelect.value;
+    editorBack.style.fontFamily = fontSelect.value;
   });
 
   inc.addEventListener('click', () => {
-    const size = parseInt(window.getComputedStyle(editor).fontSize, 10);
-    editor.style.fontSize = (size + 2) + 'px';
+    [editorFront, editorBack].forEach(el => {
+      const size = parseInt(window.getComputedStyle(el).fontSize, 10);
+      el.style.fontSize = (size + 2) + 'px';
+    });
   });
 
   dec.addEventListener('click', () => {
-    const size = parseInt(window.getComputedStyle(editor).fontSize, 10);
-    editor.style.fontSize = Math.max(size - 2, 6) + 'px';
+    [editorFront, editorBack].forEach(el => {
+      const size = parseInt(window.getComputedStyle(el).fontSize, 10);
+      el.style.fontSize = Math.max(size - 2, 6) + 'px';
+    });
+  });
+
+  flipBtn.addEventListener('click', () => {
+    flipped = !flipped;
+    container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg) rotateY(${flipped ? 180 : 0}deg)`;
   });
 
   /* 3D ROTATION BY DRAGGING BACKGROUND */
-  const container = document.getElementById('taContainer');
   let isDragging = false;
   let prevX = 0;
   let prevY = 0;
-  let rotX = 0;
-  let rotY = 0;
 
   container.addEventListener('mousedown', (e) => {
-    if(e.target === document.getElementById('rotateHandle')) return; // skip handle
+    if(e.target === document.getElementById('rotateHandle')) return;
     isDragging = true;
     prevX = e.clientX;
     prevY = e.clientY;
@@ -209,9 +230,9 @@
     if(!isDragging) return;
     const dx = e.clientX - prevX;
     const dy = e.clientY - prevY;
-    rotY += dx * 0.5; // horizontal rotation
-    rotX -= dy * 0.5; // vertical rotation
-    container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+    rotY += dx * 0.5;
+    rotX -= dy * 0.5;
+    container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg)`;
     prevX = e.clientX;
     prevY = e.clientY;
   });
@@ -252,7 +273,7 @@
     if (!rotating) return;
     const angle = getAngle(e);
     const delta = angle - startAngle;
-    container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg) rotate(${startRotation + delta}deg)`;
+    container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg) rotate(${startRotation + delta}deg)`;
   });
 
   window.addEventListener('mouseup', () => {
