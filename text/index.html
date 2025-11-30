@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<title>diabolical text</title>
+<title>diabolical text 3D</title>
 <style>
   html, body { 
     margin: 0;
@@ -13,6 +12,8 @@
     background: #0b1220;
     color: #e6eef8;
     font-family: 'Times New Roman', serif;
+    overflow: hidden;
+    perspective: 1000px; /* for 3D */
   }
 
   .ui {
@@ -41,14 +42,20 @@
     padding: 4px 8px;
   }
 
-  /* Full rotating container */
+  /* Full container with 3D transform support */
   .ta-container {
     position: fixed;
     width: 90%;
     height: 75%;
     left: 5%;
     top: 20%;
+    transform-style: preserve-3d;
     transform-origin: center center;
+    cursor: grab;
+  }
+
+  .ta-container:active {
+    cursor: grabbing;
   }
 
   /* Wrapper for gradient border */
@@ -57,6 +64,7 @@
     width: 100%;
     height: 100%;
     border-radius: 12px;
+    transform-style: preserve-3d;
   }
 
   .ta-wrap textarea {
@@ -73,6 +81,7 @@
     font-family: inherit;
     position: relative;
     z-index: 2;
+    transform-style: preserve-3d;
   }
 
   .ta-wrap:focus-within::before {
@@ -93,7 +102,7 @@
     100% { background-position: 0% 50%; }
   }
 
-  /* Rotator group (hidden unless focused) */
+  /* Rotator group (handle) */
   .rotator {
     position: absolute;
     top: -45px;
@@ -102,22 +111,19 @@
     transform: rotate(0.5turn);
     width: 2px;
     height: 45px;
-    display: none;
+    display: flex;
     align-items: center;
     flex-direction: column;
     pointer-events: none;
     z-index: 20;
   }
 
-  /* Connector line */
   .rotator-line {
     width: 2px;
     height: 25px;
     background: #66ccff;
-    pointer-events: none;
   }
 
-  /* Handle (small) */
   .rotate-handle {
     width: 20px;
     height: 20px;
@@ -132,15 +138,8 @@
     cursor: grabbing;
   }
 
-  /* Show rotator only when textarea (inside ta-wrap) is focused */
-  .ta-wrap:focus-within + .rotator,
-  .ta-wrap:focus-within ~ .rotator {
-    display: flex;
-  }
-
 </style>
 </head>
-
 <body>
 
   <div class="ui">
@@ -191,10 +190,38 @@
     editor.style.fontSize = Math.max(size - 2, 6) + 'px';
   });
 
-  /* ROTATION */
+  /* 3D ROTATION BY DRAGGING BACKGROUND */
   const container = document.getElementById('taContainer');
-  const handle = document.getElementById('rotateHandle');
+  let isDragging = false;
+  let prevX = 0;
+  let prevY = 0;
+  let rotX = 0;
+  let rotY = 0;
 
+  container.addEventListener('mousedown', (e) => {
+    if(e.target === document.getElementById('rotateHandle')) return; // skip handle
+    isDragging = true;
+    prevX = e.clientX;
+    prevY = e.clientY;
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if(!isDragging) return;
+    const dx = e.clientX - prevX;
+    const dy = e.clientY - prevY;
+    rotY += dx * 0.5; // horizontal rotation
+    rotX -= dy * 0.5; // vertical rotation
+    container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+    prevX = e.clientX;
+    prevY = e.clientY;
+  });
+
+  window.addEventListener('mouseup', () => {
+    isDragging = false;
+  });
+
+  /* HANDLE-ONLY ROTATION (around Z axis) */
+  const handle = document.getElementById('rotateHandle');
   let rotating = false;
   let startAngle = 0;
   let startRotation = 0;
@@ -209,24 +236,23 @@
   handle.addEventListener('mousedown', (e) => {
     rotating = true;
     startAngle = getAngle(e);
-
     const transform = window.getComputedStyle(container).transform;
     if (transform !== 'none') {
       const vals = transform.split('(')[1].split(')')[0].split(',');
-      const a = vals[0], b = vals[1];
+      const a = parseFloat(vals[0]), b = parseFloat(vals[1]);
       startRotation = Math.atan2(b, a) * (180 / Math.PI);
     } else {
       startRotation = 0;
     }
-
+    e.stopPropagation();
     e.preventDefault();
   });
 
   window.addEventListener('mousemove', (e) => {
     if (!rotating) return;
     const angle = getAngle(e);
-    const newRotation = startRotation + (angle - startAngle);
-    container.style.transform = `rotate(${newRotation}deg)`;
+    const delta = angle - startAngle;
+    container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg) rotate(${startRotation + delta}deg)`;
   });
 
   window.addEventListener('mouseup', () => {
