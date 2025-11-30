@@ -12,6 +12,7 @@
     height: 100%;
     background: #0b1220;
     color: #e6eef8;
+    font-family: 'IBM Plex Mono', monospace;
   }
 
   .ui {
@@ -29,6 +30,7 @@
     padding: 8px 16px;
     box-sizing: border-box;
     font-size: 14px;
+    z-index: 5;
   }
 
   select, button {
@@ -39,17 +41,24 @@
     padding: 4px 8px;
   }
 
-  /* WRAPPER for gradient border */
-  .ta-wrap {
+  /* Full rotating container */
+  .ta-container {
     position: fixed;
     width: 90%;
     height: 75%;
     left: 5%;
     top: 20%;
+    transform-origin: center center;
+  }
+
+  /* Wrapper for gradient border */
+  .ta-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
     border-radius: 12px;
   }
 
-  /* Textarea styling */
   .ta-wrap textarea {
     width: 100%;
     height: 100%;
@@ -61,12 +70,11 @@
     padding: 20px;
     box-sizing: border-box;
     font-size: 16px;
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: inherit;
     position: relative;
     z-index: 2;
   }
 
-  /* Gradient border when focused */
   .ta-wrap:focus-within::before {
     content: "";
     position: absolute;
@@ -83,6 +91,51 @@
     0%   { background-position: 0% 50%; }
     50%  { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
+  }
+
+  /* Rotator group (hidden unless focused) */
+  .rotator {
+    position: absolute;
+    top: -45px;
+    left: 50%;
+    transform: translateX(-50%);
+    transform: rotate(0.5turn);
+    width: 2px;
+    height: 45px;
+    display: none;
+    align-items: center;
+    flex-direction: column;
+    pointer-events: none;
+    z-index: 20;
+  }
+
+  /* Connector line */
+  .rotator-line {
+    width: 2px;
+    height: 25px;
+    background: #66ccff;
+    pointer-events: none;
+  }
+
+  /* Handle (small) */
+  .rotate-handle {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #66ccff;
+    border: 2px solid #0b1220;
+    cursor: grab;
+    pointer-events: auto; 
+  }
+
+  .rotate-handle:active {
+    cursor: grabbing;
+  }
+
+  /* Show rotator only when textarea (inside ta-wrap) is focused */
+  .ta-wrap:focus-within + .rotator,
+  .ta-wrap:focus-within ~ .rotator {
+    display: flex;
   }
 
 </style>
@@ -103,8 +156,19 @@
     <button id="increase">A+</button>
   </div>
 
-  <div class="ta-wrap">
-    <textarea id="editor"></textarea>
+  <div class="ta-container" id="taContainer">
+
+    <!-- TEXTAREA -->
+    <div class="ta-wrap" id="taWrap">
+      <textarea id="editor"></textarea>
+    </div>
+
+    <!-- Handle + connector -->
+    <div class="rotator" id="rotator">
+      <div class="rotator-line"></div>
+      <div class="rotate-handle" id="rotateHandle"></div>
+    </div>
+
   </div>
 
 <script>
@@ -126,6 +190,49 @@
     const size = parseInt(window.getComputedStyle(editor).fontSize, 10);
     editor.style.fontSize = Math.max(size - 2, 6) + 'px';
   });
+
+  /* ROTATION */
+  const container = document.getElementById('taContainer');
+  const handle = document.getElementById('rotateHandle');
+
+  let rotating = false;
+  let startAngle = 0;
+  let startRotation = 0;
+
+  function getAngle(e) {
+    const rect = container.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+  }
+
+  handle.addEventListener('mousedown', (e) => {
+    rotating = true;
+    startAngle = getAngle(e);
+
+    const transform = window.getComputedStyle(container).transform;
+    if (transform !== 'none') {
+      const vals = transform.split('(')[1].split(')')[0].split(',');
+      const a = vals[0], b = vals[1];
+      startRotation = Math.atan2(b, a) * (180 / Math.PI);
+    } else {
+      startRotation = 0;
+    }
+
+    e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!rotating) return;
+    const angle = getAngle(e);
+    const newRotation = startRotation + (angle - startAngle);
+    container.style.transform = `rotate(${newRotation}deg)`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    rotating = false;
+  });
+
 </script>
 
 </body>
