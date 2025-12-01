@@ -13,7 +13,7 @@
     color: #e6eef8;
     font-family: 'Times New Roman', serif;
     overflow: hidden;
-    perspective: 1000px; /* for 3D */
+    perspective: 1000px;
   }
 
   .ui {
@@ -59,7 +59,6 @@
     cursor: grabbing;
   }
 
-  /* Front and Back wrapper */
   .ta-wrap {
     position: relative;
     width: 100%;
@@ -87,7 +86,7 @@
     background: #ffffff;
     color: #0b1220;
     border: 1px solid black;
-    transform: rotateY(180deg); /* flip backside */
+    transform: rotateY(180deg);
   }
 
   textarea {
@@ -103,7 +102,6 @@
     font-family: inherit;
   }
 
-  /* Rotator group (handle) */
   .rotator {
     position: absolute;
     top: -45px;
@@ -138,7 +136,6 @@
   .rotate-handle:active {
     cursor: grabbing;
   }
-
 </style>
 </head>
 <body>
@@ -155,23 +152,21 @@
     <button id="decrease">A-</button>
     <button id="increase">A+</button>
     <button id="flip">Flip</button>
+    <button id="reset">Reset</button>
   </div>
 
   <div class="ta-container" id="taContainer">
 
     <div class="ta-wrap" id="taWrap">
-      <!-- FRONT -->
       <div class="ta-front">
         <textarea id="editorFront" placeholder="Front side..."></textarea>
       </div>
 
-      <!-- BACK -->
       <div class="ta-back">
         <textarea id="editorBack" placeholder="Back side..."></textarea>
       </div>
     </div>
 
-    <!-- Handle + connector -->
     <div class="rotator" id="rotator">
       <div class="rotator-line"></div>
       <div class="rotate-handle" id="rotateHandle"></div>
@@ -186,6 +181,7 @@
   const inc = document.getElementById('increase');
   const dec = document.getElementById('decrease');
   const flipBtn = document.getElementById('flip');
+  const resetBtn = document.getElementById('reset');
   const container = document.getElementById('taContainer');
 
   let rotX = 0, rotY = 0, flipped = false;
@@ -211,10 +207,21 @@
 
   flipBtn.addEventListener('click', () => {
     flipped = !flipped;
-    container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg) rotateY(${flipped ? 180 : 0}deg)`;
+    container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg)`;
   });
 
-  /* 3D ROTATION BY DRAGGING BACKGROUND */
+  /* RESET ORIENTATION */
+  resetBtn.addEventListener('click', () => {
+    rotX = 0;
+    rotY = 0;
+    flipped = false;
+
+    container.style.transition = "transform 0.5s";
+    container.style.transform = `rotateX(0deg) rotateY(0deg) rotate(0deg)`;
+    setTimeout(() => container.style.transition = "", 600);
+  });
+
+  /* DRAG ROTATION */
   let isDragging = false;
   let prevX = 0;
   let prevY = 0;
@@ -241,7 +248,7 @@
     isDragging = false;
   });
 
-  /* HANDLE-ONLY ROTATION (around Z axis) */
+  /* HANDLE ROTATION (Z axis) */
   const handle = document.getElementById('rotateHandle');
   let rotating = false;
   let startAngle = 0;
@@ -257,6 +264,7 @@
   handle.addEventListener('mousedown', (e) => {
     rotating = true;
     startAngle = getAngle(e);
+
     const transform = window.getComputedStyle(container).transform;
     if (transform !== 'none') {
       const vals = transform.split('(')[1].split(')')[0].split(',');
@@ -265,6 +273,7 @@
     } else {
       startRotation = 0;
     }
+
     e.stopPropagation();
     e.preventDefault();
   });
@@ -273,13 +282,14 @@
     if (!rotating) return;
     const angle = getAngle(e);
     const delta = angle - startAngle;
-    container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg) rotate(${startRotation + delta}deg)`;
+
+    container.style.transform =
+      `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg) rotate(${startRotation + delta}deg)`;
   });
 
   window.addEventListener('mouseup', () => {
     rotating = false;
   });
-
 </script>
 
 </body>
