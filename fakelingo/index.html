@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>FakeLingo</title>
+
+<style>
+/* === Global Layout === */
+html, body {
+  margin: 0;
+  padding: 20px;
+  font-family: Helvetica, sans-serif;
+  background: #0f0f16;
+  color: #d8d8e6;
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+/* Layout containers as cards */
+#main {
+  flex: 1;
+  padding: 20px;
+
+  background: #1a1b27;
+  margin-right: 20px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+}
+
+#sidebar {
+  width: 260px;
+  background: #1a1b27;
+  border-radius: 16px;
+  padding: 20px;
+  box-sizing: border-box;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+}
+
+/* Headings */
+h2, h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #e6eef8;
+}
+
+/* === Buttons === */
+button {
+  padding: 10px 14px;
+  margin: 6px 0;
+  width: 100%;
+  font-size: 15px;
+  cursor: pointer;
+
+  background: #2a2d3f;
+  border: 1px solid #383c57;
+  border-radius: 10px;
+  color: #aab7ff;
+  font-weight: 600;
+}
+
+button:hover {
+  background: #26293d;
+}
+
+/* === Labels + Inputs === */
+label {
+  display: block;
+  margin-top: 15px;
+  font-size: 14px;
+  color: #a8b0cc;
+}
+
+input[type="number"] {
+  width: 100%;
+  padding: 8px;
+  margin-top: 6px;
+  box-sizing: border-box;
+
+  background: #0f0f16;
+  border: 1px solid #383c57;
+  border-radius: 8px;
+  color: #d8d8e6;
+}
+
+input[type="number"]:focus {
+  outline: none;
+  border-color: #4c73ff;
+}
+
+/* === Score Text === */
+#score {
+  margin-top: 20px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #e6eef8;
+}
+</style>
+</head>
+
+<body>
+
+<div id="main">
+  <h2>Manual Sound Controls</h2>
+
+  <button id="btn-correct">Play Correct</button>
+  <button id="btn-wrong">Play Wrong</button>
+  <button id="btn-complete">Play Complete</button>
+</div>
+
+<div id="sidebar">
+  <h3>Auto Mode</h3>
+
+  <label>Correct Percentage (0–100):</label>
+  <input id="pct" type="number" value="90" min="0" max="100">
+
+  <label>Pause (ms) between auto actions:</label>
+  <input id="pause" type="number" value="3000" min="0">
+
+  <button id="auto-start">Start Auto</button>
+  <button id="auto-stop">Stop Auto</button>
+
+  <div id="score">Score: 0 / 15</div>
+</div>
+
+<audio id="snd-correct" src="https://www.myinstants.com/media/sounds/duolingo-correct.mp3"></audio>
+<audio id="snd-wrong"   src="https://www.myinstants.com/media/sounds/duolingo-wrong.mp3"></audio>
+<audio id="snd-complete" src="https://www.myinstants.com/media/sounds/duolingo-lesson-complete-results.mp3"></audio>
+
+<script>
+  const sndCorrect = document.getElementById("snd-correct");
+  const sndWrong = document.getElementById("snd-wrong");
+  const sndComplete = document.getElementById("snd-complete");
+
+  const scoreDiv = document.getElementById("score");
+  let score = 0;
+  const maxScore = 15;
+
+  let autoTimer = null;
+  let completeCooldown = false;
+
+  function updateScoreDisplay() {
+    scoreDiv.textContent = `Score: ${score} / ${maxScore}`;
+  }
+
+  function addCorrect() {
+    sndCorrect.currentTime = 0;
+    sndCorrect.play();
+    score++;
+    checkComplete();
+  }
+
+  function addWrong() {
+    sndWrong.currentTime = 0;
+    sndWrong.play();
+    score = Math.max(0, score - 1);
+    updateScoreDisplay();
+  }
+
+  function handleComplete(pause) {
+    completeCooldown = true;
+
+    setTimeout(() => {
+      sndComplete.currentTime = 0;
+      sndComplete.play();
+
+      score = 0;
+      updateScoreDisplay();
+
+      setTimeout(() => {
+        completeCooldown = false;
+      }, 2 * pause);
+
+    }, pause);
+  }
+
+  function checkComplete() {
+    updateScoreDisplay();
+    if (score >= maxScore) {
+      // handled in auto mode
+    }
+  }
+
+  document.getElementById("btn-correct").onclick = () => {
+    sndCorrect.currentTime = 0;
+    sndCorrect.play();
+  };
+
+  document.getElementById("btn-wrong").onclick = () => {
+    sndWrong.currentTime = 0;
+    sndWrong.play();
+  };
+
+  document.getElementById("btn-complete").onclick = () => {
+    sndComplete.currentTime = 0;
+    sndComplete.play();
+  };
+
+  document.getElementById("auto-start").onclick = () => {
+    if (autoTimer) return;
+
+    const pct = parseInt(document.getElementById("pct").value, 10);
+    const pause = parseInt(document.getElementById("pause").value, 10);
+
+    function step() {
+      if (completeCooldown) {
+        autoTimer = setTimeout(step, 50);
+        return;
+      }
+
+      const roll = Math.random() * 100;
+      const isCorrect = roll < pct;
+
+      if (isCorrect) {
+        score++;
+        sndCorrect.currentTime = 0;
+        sndCorrect.play();
+
+        if (score >= maxScore) {
+          handleComplete(pause);
+          autoTimer = setTimeout(step, pause);
+          return;
+        }
+
+        updateScoreDisplay();
+      } else {
+        score = Math.max(0, score - 1);
+        sndWrong.currentTime = 0;
+        sndWrong.play();
+        updateScoreDisplay();
+      }
+
+      autoTimer = setTimeout(step, pause);
+    }
+
+    step();
+  };
+
+  document.getElementById("auto-stop").onclick = () => {
+    if (autoTimer) {
+      clearTimeout(autoTimer);
+      autoTimer = null;
+    }
+  };
+</script>
+
+</body>
+</html>
