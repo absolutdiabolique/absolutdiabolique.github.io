@@ -280,7 +280,7 @@
   hashBtn.addEventListener("mouseenter", () => {
     flashTimer = setTimeout(() => {
       hashBtn.classList.add("flash");
-      setTimeout(() => hashBtn.classList.remove("flash"), 900);
+      setTimeout(() => hashBtn.classList.remove("flash"), 500);
     }, 1500);
 
     hoverTimer = setTimeout(applyHash, 2000);
