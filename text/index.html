@@ -17,20 +17,21 @@
     perspective: 1000px;
   }
 
+  /* UI BAR + expandable area push layout down */
   .ui {
-    position: fixed;
-    top: 5%;
-    left: 5%;
+    position: relative;
     width: 90%;
+    margin: 5% auto 0 auto;
     background: #173063;
     border: 1px solid black;
     border-radius: 12px;
     display: flex;
     align-items: center;
-    gap: 2%;
+    gap: 10px;
     padding: 8px 16px;
     box-sizing: border-box;
     font-size: 14px;
+    flex-wrap: wrap;
     z-index: 5;
   }
 
@@ -43,10 +44,35 @@
     cursor: pointer;
   }
 
+  /* Expandable area */
+  #expandPanel {
+    width: 100%;
+    margin-top: 8px;
+    background: #112246;
+    border-radius: 8px;
+    padding: 10px;
+    display: none;
+  }
+
+  .expand-btn {
+    background: #112246;
+  }
+
+  /* Flash animation */
+  .flash {
+    animation: flashAnim 0.3s alternate 3;
+  }
+
+  @keyframes flashAnim {
+    0% { background: #0b1220; color: #e6eef8; }
+    100% { background: #66ccff; color: #000; }
+  }
+
+  /* Textarea container */
   .ta-container {
-    margin: auto;
+    margin: 20px auto 0 auto;
     width: 90%;
-    height: 75%;
+    height: 80vh;
     transform-style: preserve-3d;
     transform-origin: center center;
     cursor: grab;
@@ -99,41 +125,6 @@
     font-size: 16px;
     font-family: inherit;
   }
-
-  .rotator {
-    position: absolute;
-    top: -45px;
-    left: 50%;
-    transform: translateX(-50%);
-    transform: rotate(0.5turn);
-    width: 2px;
-    height: 45px;
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-    pointer-events: none;
-    z-index: 20;
-  }
-
-  .rotator-line {
-    width: 2px;
-    height: 25px;
-    background: #66ccff;
-  }
-
-  .rotate-handle {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #66ccff;
-    border: 2px solid #0b1220;
-    cursor: grab;
-    pointer-events: auto; 
-  }
-
-  .rotate-handle:active {
-    cursor: grabbing;
-  }
 </style>
 </head>
 <body>
@@ -151,11 +142,18 @@
     <button id="increase">A+</button>
     <button id="flip">Flip</button>
     <button id="reset">Reset</button>
+
+    <button id="expandToggle" class="expand-btn">More ▼</button>
+
+    <!-- Expandable panel -->
+    <div id="expandPanel">
+      <button id="hashBtn">SHA-256</button>
+    </div>
   </div>
 
   <div class="ta-container" id="taContainer">
-
     <div class="ta-wrap" id="taWrap">
+
       <div class="ta-front">
         <textarea id="editorFront" placeholder="Front side..."></textarea>
       </div>
@@ -163,32 +161,29 @@
       <div class="ta-back">
         <textarea id="editorBack" placeholder="Back side..."></textarea>
       </div>
+
     </div>
-
-    <!--<div class="rotator" id="rotator">-->
-    <!--  <div class="rotator-line"></div>-->
-    <!--  <div class="rotate-handle" id="rotateHandle"></div>-->
-    <!--</div>-->
-
   </div>
 
 <script>
   const editorFront = document.getElementById('editorFront');
-  const editorBack = document.getElementById('editorBack');
-  const fontSelect = document.getElementById('fontSelect');
-  const inc = document.getElementById('increase');
-  const dec = document.getElementById('decrease');
-  const flipBtn = document.getElementById('flip');
-  const resetBtn = document.getElementById('reset');
-  const container = document.getElementById('taContainer');
+  const editorBack  = document.getElementById('editorBack');
+  const fontSelect  = document.getElementById('fontSelect');
+  const inc         = document.getElementById('increase');
+  const dec         = document.getElementById('decrease');
+  const flipBtn     = document.getElementById('flip');
+  const resetBtn    = document.getElementById('reset');
+  const container   = document.getElementById('taContainer');
 
   let rotX = 0, rotY = 0, flipped = false;
 
+  /* Font change */
   fontSelect.addEventListener('change', () => {
     editorFront.style.fontFamily = fontSelect.value;
-    editorBack.style.fontFamily = fontSelect.value;
+    editorBack.style.fontFamily  = fontSelect.value;
   });
 
+  /* Font size controls */
   inc.addEventListener('click', () => {
     [editorFront, editorBack].forEach(el => {
       const size = parseInt(window.getComputedStyle(el).fontSize, 10);
@@ -203,91 +198,98 @@
     });
   });
 
+  /* Flip card */
   flipBtn.addEventListener('click', () => {
     flipped = !flipped;
-    container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg)`;
+    container.style.transform =
+      `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg)`;
   });
 
-  /* RESET ORIENTATION */
+  /* Reset orientation */
   resetBtn.addEventListener('click', () => {
     rotX = 0;
     rotY = 0;
     flipped = false;
-
     container.style.transition = "transform 0.5s";
     container.style.transform = `rotateX(0deg) rotateY(0deg) rotate(0deg)`;
     setTimeout(() => container.style.transition = "", 600);
   });
 
-  /* DRAG ROTATION */
-  let isDragging = false;
-  let prevX = 0;
-  let prevY = 0;
+  /* Drag rotation */
+  let isDragging = false, prevX = 0, prevY = 0;
 
   container.addEventListener('mousedown', (e) => {
-    if(e.target === document.getElementById('rotateHandle')) return;
     isDragging = true;
     prevX = e.clientX;
     prevY = e.clientY;
   });
 
   window.addEventListener('mousemove', (e) => {
-    if(!isDragging) return;
+    if (!isDragging) return;
     const dx = e.clientX - prevX;
     const dy = e.clientY - prevY;
     rotY += dx * 0.5;
     rotX -= dy * 0.5;
-    container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg)`;
+    container.style.transform =
+      `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg)`;
     prevX = e.clientX;
     prevY = e.clientY;
   });
 
-  window.addEventListener('mouseup', () => {
-    isDragging = false;
+  window.addEventListener('mouseup', () => isDragging = false);
+
+  /* Expandable panel toggle */
+  const expandToggle = document.getElementById("expandToggle");
+  const expandPanel  = document.getElementById("expandPanel");
+
+  expandToggle.addEventListener("click", () => {
+    const open = expandPanel.style.display === "block";
+    expandPanel.style.display = open ? "none" : "block";
+    expandToggle.textContent = open ? "More ▼" : "More ▲";
   });
 
-  /* HANDLE ROTATION (Z axis) */
-  <!--const handle = document.getElementById('rotateHandle');-->
-  <!--let rotating = false;-->
-  <!--let startAngle = 0;-->
-  <!--let startRotation = 0;-->
+  /* SHA-256 hashing */
+  async function sha256(str) {
+    const buf = new TextEncoder().encode(str);
+    const hash = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(hash))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
 
-  <!--function getAngle(e) {-->
-  <!--  const rect = container.getBoundingClientRect();-->
-  <!--  const cx = rect.left + rect.width / 2;-->
-  <!--  const cy = rect.top + rect.height / 2;-->
-  <!--  return Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);-->
-  <!--}-->
+  async function applyHash() {
+    const active = flipped ? editorBack : editorFront;
+    const sel = active.value.substring(active.selectionStart, active.selectionEnd);
+    const text = sel || active.value;
 
-  <!--handle.addEventListener('mousedown', (e) => {-->
-  <!--  rotating = true;-->
-  <!--  startAngle = getAngle(e);-->
+    const hashed = await sha256(text);
 
-  <!--  const transform = window.getComputedStyle(container).transform;-->
-  <!--  if (transform !== 'none') {-->
-  <!--    const vals = transform.split('(')[1].split(')')[0].split(',');-->
-  <!--    const a = parseFloat(vals[0]), b = parseFloat(vals[1]);-->
-  <!--    startRotation = Math.atan2(b, a) * (180 / Math.PI);-->
-  <!--  } else {-->
-  <!--    startRotation = 0;-->
-  <!--  }-->
+    if (sel) {
+      active.setRangeText(hashed, active.selectionStart, active.selectionEnd, "end");
+    } else {
+      active.value = hashed;
+    }
+  }
 
-  <!--  e.stopPropagation();-->
-  <!--  e.preventDefault();-->
-  <!--});-->
+  /* Hash button hover activation */
+  const hashBtn = document.getElementById("hashBtn");
+  let hoverTimer = null;
+  let flashTimer = null;
 
-  <!--window.addEventListener('mousemove', (e) => {-->
-  <!--  if (!rotating) return;-->
-  <!--  const angle = getAngle(e);-->
-  <!--  const delta = angle - startAngle;-->
+  hashBtn.addEventListener("mouseenter", () => {
+    flashTimer = setTimeout(() => {
+      hashBtn.classList.add("flash");
+      setTimeout(() => hashBtn.classList.remove("flash"), 900);
+    }, 1500);
 
-  <!--  container.style.transform =-->
-  <!--    `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg) rotate(${startRotation + delta}deg)`;-->
-  <!--});-->
+    hoverTimer = setTimeout(applyHash, 2000);
+  });
 
-  <!--window.addEventListener('mouseup', () => {-->
-  <!--  rotating = false;-->
-  <!--});-->
+  hashBtn.addEventListener("mouseleave", () => {
+    clearTimeout(hoverTimer);
+    clearTimeout(flashTimer);
+    hashBtn.classList.remove("flash");
+  });
 </script>
 
 </body>
