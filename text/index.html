@@ -5,6 +5,7 @@
 <title>diabolical text</title>
 <style>
   html, body { 
+    display: grid;
     margin: 0;
     padding: 0;
     width: 100%;
@@ -21,13 +22,12 @@
     top: 5%;
     left: 5%;
     width: 90%;
-    height: 10%;
     background: #173063;
     border: 1px solid black;
     border-radius: 12px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 2%;
     padding: 8px 16px;
     box-sizing: border-box;
     font-size: 14px;
@@ -44,11 +44,9 @@
   }
 
   .ta-container {
-    position: fixed;
+    margin: auto;
     width: 90%;
     height: 75%;
-    left: 5%;
-    top: 20%;
     transform-style: preserve-3d;
     transform-origin: center center;
     cursor: grab;
@@ -167,10 +165,10 @@
       </div>
     </div>
 
-    <div class="rotator" id="rotator">
-      <div class="rotator-line"></div>
-      <div class="rotate-handle" id="rotateHandle"></div>
-    </div>
+    <!--<div class="rotator" id="rotator">-->
+    <!--  <div class="rotator-line"></div>-->
+    <!--  <div class="rotate-handle" id="rotateHandle"></div>-->
+    <!--</div>-->
 
   </div>
 
@@ -249,47 +247,47 @@
   });
 
   /* HANDLE ROTATION (Z axis) */
-  const handle = document.getElementById('rotateHandle');
-  let rotating = false;
-  let startAngle = 0;
-  let startRotation = 0;
+  <!--const handle = document.getElementById('rotateHandle');-->
+  <!--let rotating = false;-->
+  <!--let startAngle = 0;-->
+  <!--let startRotation = 0;-->
 
-  function getAngle(e) {
-    const rect = container.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    return Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
-  }
+  <!--function getAngle(e) {-->
+  <!--  const rect = container.getBoundingClientRect();-->
+  <!--  const cx = rect.left + rect.width / 2;-->
+  <!--  const cy = rect.top + rect.height / 2;-->
+  <!--  return Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);-->
+  <!--}-->
 
-  handle.addEventListener('mousedown', (e) => {
-    rotating = true;
-    startAngle = getAngle(e);
+  <!--handle.addEventListener('mousedown', (e) => {-->
+  <!--  rotating = true;-->
+  <!--  startAngle = getAngle(e);-->
 
-    const transform = window.getComputedStyle(container).transform;
-    if (transform !== 'none') {
-      const vals = transform.split('(')[1].split(')')[0].split(',');
-      const a = parseFloat(vals[0]), b = parseFloat(vals[1]);
-      startRotation = Math.atan2(b, a) * (180 / Math.PI);
-    } else {
-      startRotation = 0;
-    }
+  <!--  const transform = window.getComputedStyle(container).transform;-->
+  <!--  if (transform !== 'none') {-->
+  <!--    const vals = transform.split('(')[1].split(')')[0].split(',');-->
+  <!--    const a = parseFloat(vals[0]), b = parseFloat(vals[1]);-->
+  <!--    startRotation = Math.atan2(b, a) * (180 / Math.PI);-->
+  <!--  } else {-->
+  <!--    startRotation = 0;-->
+  <!--  }-->
 
-    e.stopPropagation();
-    e.preventDefault();
-  });
+  <!--  e.stopPropagation();-->
+  <!--  e.preventDefault();-->
+  <!--});-->
 
-  window.addEventListener('mousemove', (e) => {
-    if (!rotating) return;
-    const angle = getAngle(e);
-    const delta = angle - startAngle;
+  <!--window.addEventListener('mousemove', (e) => {-->
+  <!--  if (!rotating) return;-->
+  <!--  const angle = getAngle(e);-->
+  <!--  const delta = angle - startAngle;-->
 
-    container.style.transform =
-      `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg) rotate(${startRotation + delta}deg)`;
-  });
+  <!--  container.style.transform =-->
+  <!--    `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg) rotate(${startRotation + delta}deg)`;-->
+  <!--});-->
 
-  window.addEventListener('mouseup', () => {
-    rotating = false;
-  });
+  <!--window.addEventListener('mouseup', () => {-->
+  <!--  rotating = false;-->
+  <!--});-->
 </script>
 
 </body>
