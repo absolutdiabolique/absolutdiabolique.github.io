@@ -143,6 +143,7 @@
     <button id="increase">A+</button>
     <button id="flip">Flip</button>
     <button id="reset">Reset</button>
+    <button id="save">Save</button>
 
     <button id="expandToggle" class="expand-btn">More ▼</button>
 
@@ -175,6 +176,7 @@
   const flipBtn     = document.getElementById('flip');
   const resetBtn    = document.getElementById('reset');
   const container   = document.getElementById('taContainer');
+  const save        = document.getElementById('save');
 
   let rotX = 0, rotY = 0, flipped = false;
 
@@ -215,6 +217,17 @@
     container.style.transform = `rotateX(0deg) rotateY(0deg) rotate(0deg)`;
     setTimeout(() => container.style.transition = "", 600);
   });
+
+  save.addEventListener('click', () => {
+    const frontText = editorFront.value;
+    const backText  = editorBack.value;
+  
+    const totalLength = frontText.length + backText.length;
+
+    localStorage.setItem(STORAGE_KEY_FRONT, frontText);
+    localStorage.setItem(STORAGE_KEY_BACK,  backText);
+  });
+
 
   /* Drag rotation */
   let isDragging = false, prevX = 0, prevY = 0;
@@ -291,7 +304,7 @@
     clearTimeout(flashTimer);
     hashBtn.classList.remove("flash");
   });
-  /* ---------- Autosave + Autoload ---------- */
+  /* ----------  Autoload ---------- */
   
   const STORAGE_KEY_FRONT = "diabolical_front";
   const STORAGE_KEY_BACK  = "diabolical_back";
@@ -304,20 +317,6 @@
     if (savedFront !== null) editorFront.value = savedFront;
     if (savedBack  !== null) editorBack.value  = savedBack;
   });
-  
-  /* Autosave every 10 seconds */
-  setInterval(() => {
-    const frontText = editorFront.value;
-    const backText  = editorBack.value;
-  
-    const totalLength = frontText.length + backText.length;
-  
-    if (totalLength < 10000) {
-      localStorage.setItem(STORAGE_KEY_FRONT, frontText);
-      localStorage.setItem(STORAGE_KEY_BACK,  backText);
-    }
-  
-  }, 10000);
 
 </script>
 
