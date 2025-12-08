@@ -3,321 +3,290 @@
 <head>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <title>diabolical text</title>
+
+<!-- JSZip -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
 <style>
-  html, body { 
-    display: grid;
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    background: #0b1220;
-    color: #e6eef8;
-    font-family: 'IBM Plex Mono', monospace;
-    overflow: hidden;
-    perspective: 1000px;
-  }
+html, body { 
+  display: grid;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #0b1220;
+  color: #e6eef8;
+  font-family: 'IBM Plex Mono', monospace;
+  overflow: hidden;
+  perspective: 1000px;
+}
 
-  /* UI BAR + expandable area push layout down */
-  .ui {
-    position: relative;
-    width: 90%;
-    margin: 5% auto 0 auto;
-    background: #173063;
-    border: 1px solid black;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 16px;
-    box-sizing: border-box;
-    font-size: 14px;
-    flex-wrap: wrap;
-    z-index: 5;
-  }
+.ui {
+  position: relative;
+  width: 90%;
+  margin: 5% auto 0;
+  background: #173063;
+  border: 1px solid black;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  z-index: 5;
+}
 
-  select, button {
-    background: #0b1220;
-    color: #e6eef8;
-    border: 1px solid #000;
-    border-radius: 6px;
-    padding: 4px 8px;
-    cursor: pointer;
-  }
+select, button {
+  background: #0b1220;
+  color: #e6eef8;
+  border: 1px solid #000;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
 
-  /* Expandable area */
-  #expandPanel {
-    width: 100%;
-    margin-top: 8px;
-    background: #112246;
-    border-radius: 8px;
-    padding: 10px;
-    display: none;
-  }
+#expandPanel {
+  width: 100%;
+  margin-top: 8px;
+  background: #112246;
+  border-radius: 8px;
+  padding: 10px;
+  display: none;
+}
 
-  .expand-btn {
-    background: #112246;
-  }
+.expand-btn { background: #112246; }
 
-  /* Flash animation */
-  .flash {
-    animation: flashAnim 0.125s alternate 4;
-  }
+.flash { animation: flashAnim 0.125s alternate 4; }
 
-  @keyframes flashAnim {
-    0% { background: #0b1220; color: #e6eef8; }
-    100% { background: #66ccff; color: #000; }
-  }
+@keyframes flashAnim {
+  0% { background: #0b1220; color: #e6eef8; }
+  100% { background: #66ccff; color: #000; }
+}
 
-  /* Textarea container */
-  .ta-container {
-    margin: 20px auto 0 auto;
-    width: 90%;
-    height: 80vh;
-    transform-style: preserve-3d;
-    transform-origin: center center;
-    cursor: grab;
-    transition: transform 0.6s;
-  }
+.ta-container {
+  margin: 20px auto 0;
+  width: 90%;
+  height: 80vh;
+  transform-style: preserve-3d;
+  cursor: grab;
+}
 
-  .ta-container:active {
-    cursor: grabbing;
-  }
+.ta-container:active { cursor: grabbing; }
 
-  .ta-wrap {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    border-radius: 12px;
-    transform-style: preserve-3d;
-  }
+.ta-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  transform-style: preserve-3d;
+}
 
-  .ta-front, .ta-back {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    border-radius: 12px;
-    backface-visibility: hidden;
-    overflow: hidden;
-    transform-style: preserve-3d;
-  }
+.ta-front, .ta-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  backface-visibility: hidden;
+  overflow: hidden;
+}
 
-  .ta-front {
-    background: #173063;
-    color: #e6eef8;
-    border: 1px solid black;
-  }
+.ta-front {
+  background: #173063;
+  color: #e6eef8;
+  border: 1px solid black;
+}
 
-  .ta-back {
-    background: #ffffff;
-    color: #0b1220;
-    border: 1px solid black;
-    transform: rotateY(180deg);
-  }
+.ta-back {
+  background: #ffffff;
+  color: #0b1220;
+  border: 1px solid black;
+  transform: rotateY(180deg);
+}
 
-  textarea {
-    width: 100%;
-    height: 100%;
-    background: transparent;
-    color: inherit;
-    border: none;
-    resize: none;
-    padding: 20px;
-    box-sizing: border-box;
-    font-size: 16px;
-    font-family: inherit;
-  }
+textarea {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  color: inherit;
+  border: none;
+  resize: none;
+  padding: 20px;
+  font-size: 16px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
 </style>
 </head>
+
 <body>
 
-  <div class="ui">
-    <select id="fontSelect">
-      <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
-      <option value="Times New Roman">Times New Roman</option>
-      <option value="Arial">Arial</option>
-      <option value="Georgia">Georgia</option>
-      <option value="'Courier New'">Courier New</option>
-    </select>
+<div class="ui">
+  <select id="fontSelect">
+    <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
+    <option value="Times New Roman">Times New Roman</option>
+    <option value="Arial">Arial</option>
+    <option value="Georgia">Georgia</option>
+    <option value="'Courier New'">Courier New</option>
+  </select>
 
-    <button id="decrease">A-</button>
-    <button id="increase">A+</button>
-    <button id="flip">Flip</button>
-    <button id="reset">Reset</button>
-    <button id="save">Save</button>
+  <button id="decrease">A-</button>
+  <button id="increase">A+</button>
+  <button id="flip">Flip</button>
+  <button id="reset">Reset</button>
+  <button id="save">Save</button>
 
-    <button id="expandToggle" class="expand-btn">More ▼</button>
+  <button id="expandToggle" class="expand-btn">More ▼</button>
 
-    <!-- Expandable panel -->
-    <div id="expandPanel">
-      <button id="hashBtn">SHA-256</button>
+  <div id="expandPanel">
+    <button id="hashBtn">SHA-256</button>
+    <hr style="border:0;border-top:1px solid #000;margin:8px 0;">
+    <button id="dlFront">front.txt</button>
+    <button id="dlBack">back.txt</button>
+    <button id="dlZip">both.zip</button>
+  </div>
+</div>
+
+<div class="ta-container" id="taContainer">
+  <div class="ta-wrap" id="taWrap">
+    <div class="ta-front">
+      <textarea id="editorFront" placeholder="Front side..."></textarea>
+    </div>
+    <div class="ta-back">
+      <textarea id="editorBack" placeholder="Back side..."></textarea>
     </div>
   </div>
-
-  <div class="ta-container" id="taContainer">
-    <div class="ta-wrap" id="taWrap">
-
-      <div class="ta-front">
-        <textarea id="editorFront" placeholder="Front side..."></textarea>
-      </div>
-
-      <div class="ta-back">
-        <textarea id="editorBack" placeholder="Back side..."></textarea>
-      </div>
-
-    </div>
-  </div>
+</div>
 
 <script>
-  const editorFront = document.getElementById('editorFront');
-  const editorBack  = document.getElementById('editorBack');
-  const fontSelect  = document.getElementById('fontSelect');
-  const inc         = document.getElementById('increase');
-  const dec         = document.getElementById('decrease');
-  const flipBtn     = document.getElementById('flip');
-  const resetBtn    = document.getElementById('reset');
-  const container   = document.getElementById('taContainer');
-  const save        = document.getElementById('save');
+const editorFront = document.getElementById('editorFront');
+const editorBack  = document.getElementById('editorBack');
+const fontSelect  = document.getElementById('fontSelect');
+const inc = document.getElementById('increase');
+const dec = document.getElementById('decrease');
+const flipBtn = document.getElementById('flip');
+const resetBtn = document.getElementById('reset');
+const container = document.getElementById('taContainer');
+const save = document.getElementById('save');
 
-  let rotX = 0, rotY = 0, flipped = false;
+let rotX = 0, rotY = 0, flipped = false;
 
-  /* Font change */
-  fontSelect.addEventListener('change', () => {
-    editorFront.style.fontFamily = fontSelect.value;
-    editorBack.style.fontFamily  = fontSelect.value;
-  });
+fontSelect.addEventListener('change', () => {
+  editorFront.style.fontFamily = fontSelect.value;
+  editorBack.style.fontFamily  = fontSelect.value;
+});
 
-  /* Font size controls */
-  inc.addEventListener('click', () => {
-    [editorFront, editorBack].forEach(el => {
-      const size = parseInt(window.getComputedStyle(el).fontSize, 10);
-      el.style.fontSize = (size + 2) + 'px';
-    });
-  });
+inc.addEventListener('click', () =>
+  [editorFront, editorBack].forEach(el =>
+    el.style.fontSize = (parseInt(getComputedStyle(el).fontSize) + 2) + 'px')
+);
 
-  dec.addEventListener('click', () => {
-    [editorFront, editorBack].forEach(el => {
-      const size = parseInt(window.getComputedStyle(el).fontSize, 10);
-      el.style.fontSize = Math.max(size - 2, 6) + 'px';
-    });
-  });
+dec.addEventListener('click', () =>
+  [editorFront, editorBack].forEach(el =>
+    el.style.fontSize = Math.max(parseInt(getComputedStyle(el).fontSize) - 2, 6) + 'px')
+);
 
-  /* Flip card */
-  flipBtn.addEventListener('click', () => {
-    flipped = !flipped;
-    container.style.transform =
-      `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg)`;
-  });
+flipBtn.addEventListener('click', () => {
+  flipped = !flipped;
+  container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg)`;
+});
 
-  /* Reset orientation */
-  resetBtn.addEventListener('click', () => {
-    rotX = 0;
-    rotY = 0;
-    flipped = false;
-    container.style.transition = "transform 0.5s";
-    container.style.transform = `rotateX(0deg) rotateY(0deg) rotate(0deg)`;
-    setTimeout(() => container.style.transition = "", 600);
-  });
+resetBtn.addEventListener('click', () => {
+  rotX = rotY = 0;
+  flipped = false;
+  container.style.transform = 'rotateX(0deg) rotateY(0deg)';
+});
 
-  save.addEventListener('click', () => {
-    const frontText = editorFront.value;
-    const backText  = editorBack.value;
-  
-    const totalLength = frontText.length + backText.length;
+save.addEventListener('click', () => {
+  localStorage.setItem("diabolical_front", editorFront.value);
+  localStorage.setItem("diabolical_back", editorBack.value);
+});
 
-    localStorage.setItem(STORAGE_KEY_FRONT, frontText);
-    localStorage.setItem(STORAGE_KEY_BACK,  backText);
-  });
+let dragging = false, px = 0, py = 0;
 
+container.addEventListener('mousedown', e => {
+  dragging = true; px = e.clientX; py = e.clientY;
+});
 
-  /* Drag rotation */
-  let isDragging = false, prevX = 0, prevY = 0;
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  rotY += (e.clientX - px) * 0.5;
+  rotX -= (e.clientY - py) * 0.5;
+  container.style.transform =
+    `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg)`;
+  px = e.clientX; py = e.clientY;
+});
 
-  container.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    prevX = e.clientX;
-    prevY = e.clientY;
-  });
+window.addEventListener('mouseup', () => dragging = false);
 
-  window.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    const dx = e.clientX - prevX;
-    const dy = e.clientY - prevY;
-    rotY += dx * 0.5;
-    rotX -= dy * 0.5;
-    container.style.transform =
-      `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg)`;
-    prevX = e.clientX;
-    prevY = e.clientY;
-  });
+const expandToggle = document.getElementById("expandToggle");
+const expandPanel = document.getElementById("expandPanel");
+expandToggle.addEventListener("click", () => {
+  const open = expandPanel.style.display === "block";
+  expandPanel.style.display = open ? "none" : "block";
+  expandToggle.textContent = open ? "More ▼" : "More ▲";
+});
 
-  window.addEventListener('mouseup', () => isDragging = false);
+async function sha256(str) {
+  const buf = new TextEncoder().encode(str);
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
 
-  /* Expandable panel toggle */
-  const expandToggle = document.getElementById("expandToggle");
-  const expandPanel  = document.getElementById("expandPanel");
+async function applyHash() {
+  const active = flipped ? editorBack : editorFront;
+  const s = active.selectionStart, e = active.selectionEnd;
+  const text = s !== e ? active.value.slice(s,e) : active.value;
+  const h = await sha256(text);
+  if (s !== e) active.setRangeText(h, s, e, "end");
+  else active.value = h;
+}
 
-  expandToggle.addEventListener("click", () => {
-    const open = expandPanel.style.display === "block";
-    expandPanel.style.display = open ? "none" : "block";
-    expandToggle.textContent = open ? "More ▼" : "More ▲";
-  });
+const hashBtn = document.getElementById("hashBtn");
+let hoverTimer, flashTimer;
 
-  /* SHA-256 hashing */
-  async function sha256(str) {
-    const buf = new TextEncoder().encode(str);
-    const hash = await crypto.subtle.digest("SHA-256", buf);
-    return Array.from(new Uint8Array(hash))
-      .map(b => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
+hashBtn.addEventListener("mouseenter", () => {
+  flashTimer = setTimeout(() => {
+    hashBtn.classList.add("flash");
+    setTimeout(()=>hashBtn.classList.remove("flash"),500);
+  },1500);
+  hoverTimer = setTimeout(applyHash,2000);
+});
 
-  async function applyHash() {
-    const active = flipped ? editorBack : editorFront;
-    const sel = active.value.substring(active.selectionStart, active.selectionEnd);
-    const text = sel || active.value;
+hashBtn.addEventListener("mouseleave", () => {
+  clearTimeout(hoverTimer);
+  clearTimeout(flashTimer);
+  hashBtn.classList.remove("flash");
+});
 
-    const hashed = await sha256(text);
+function downloadFile(name, text) {
+  const blob = new Blob([text], {type:"text/plain"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
-    if (sel) {
-      active.setRangeText(hashed, active.selectionStart, active.selectionEnd, "end");
-    } else {
-      active.value = hashed;
-    }
-  }
+dlFront.onclick = () => downloadFile("front.txt", editorFront.value);
+dlBack.onclick  = () => downloadFile("back.txt",  editorBack.value);
 
-  /* Hash button hover activation */
-  const hashBtn = document.getElementById("hashBtn");
-  let hoverTimer = null;
-  let flashTimer = null;
+dlZip.onclick = async () => {
+  const zip = new JSZip();
+  zip.file("front.txt", editorFront.value);
+  zip.file("back.txt", editorBack.value);
+  const blob = await zip.generateAsync({type:"blob"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "both.zip";
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
 
-  hashBtn.addEventListener("mouseenter", () => {
-    flashTimer = setTimeout(() => {
-      hashBtn.classList.add("flash");
-      setTimeout(() => hashBtn.classList.remove("flash"), 500);
-    }, 1500);
-
-    hoverTimer = setTimeout(applyHash, 2000);
-  });
-
-  hashBtn.addEventListener("mouseleave", () => {
-    clearTimeout(hoverTimer);
-    clearTimeout(flashTimer);
-    hashBtn.classList.remove("flash");
-  });
-  /* ----------  Autoload ---------- */
-  
-  const STORAGE_KEY_FRONT = "diabolical_front";
-  const STORAGE_KEY_BACK  = "diabolical_back";
-  
-  /* Load saved text when page opens */
-  window.addEventListener("DOMContentLoaded", () => {
-    const savedFront = localStorage.getItem(STORAGE_KEY_FRONT);
-    const savedBack  = localStorage.getItem(STORAGE_KEY_BACK);
-  
-    if (savedFront !== null) editorFront.value = savedFront;
-    if (savedBack  !== null) editorBack.value  = savedBack;
-  });
-
+window.addEventListener("DOMContentLoaded", () => {
+  editorFront.value = localStorage.getItem("diabolical_front") || "";
+  editorBack.value  = localStorage.getItem("diabolical_back")  || "";
+});
 </script>
 
 </body>
