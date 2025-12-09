@@ -7,118 +7,112 @@
 <!-- JSZip -->
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
+<!-- MathJax -->
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
 <style>
 html, body { 
-  display: grid;
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  background: #0b1220;
-  color: #e6eef8;
-  font-family: 'IBM Plex Mono', monospace;
-  overflow: hidden;
-  perspective: 1000px;
+  margin:0; padding:0;
+  width:100%; height:100%;
+  background:#0b1220;
+  color:#e6eef8;
+  font-family:'IBM Plex Mono', monospace;
+  overflow:hidden;
+  perspective:1000px;
 }
 
 .ui {
-  position: relative;
-  width: 90%;
-  margin: 5% auto 0;
-  background: #173063;
-  border: 1px solid black;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  flex-wrap: wrap;
-  font-size: 14px;
-  z-index: 5;
+  width:90%;
+  margin:5% auto 0;
+  background:#173063;
+  border:1px solid black;
+  border-radius:12px;
+  display:flex;
+  gap:10px;
+  padding:8px 16px;
+  flex-wrap:wrap;
+  font-size:14px;
 }
 
 select, button {
-  background: #0b1220;
-  color: #e6eef8;
-  border: 1px solid #000;
-  border-radius: 6px;
-  padding: 4px 8px;
-  cursor: pointer;
+  background:#0b1220;
+  color:#e6eef8;
+  border:1px solid #000;
+  border-radius:6px;
+  padding:4px 8px;
+  cursor:pointer;
 }
 
 #expandPanel {
-  width: 100%;
-  margin-top: 8px;
-  background: #112246;
-  border-radius: 8px;
-  padding: 10px;
-  display: none;
-}
-
-.expand-btn { background: #112246; }
-
-.flash { animation: flashAnim 0.125s alternate 4; }
-
-@keyframes flashAnim {
-  0% { background: #0b1220; color: #e6eef8; }
-  100% { background: #66ccff; color: #000; }
+  width:100%;
+  margin-top:8px;
+  background:#112246;
+  border-radius:8px;
+  padding:10px;
+  display:none;
 }
 
 .ta-container {
-  margin: 20px auto 0;
-  width: 90%;
-  height: 80vh;
-  transform-style: preserve-3d;
-  cursor: grab;
+  margin:20px auto 0;
+  width:90%;
+  height:80vh;
+  transform-style:preserve-3d;
+  cursor:grab;
 }
-
-.ta-container:active { cursor: grabbing; }
 
 .ta-wrap {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  border-radius: 12px;
-  transform-style: preserve-3d;
+  width:100%;
+  height:100%;
+  position:relative;
+  transform-style:preserve-3d;
 }
 
-.ta-front, .ta-back {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 12px;
-  backface-visibility: hidden;
-  overflow: hidden;
+.ta-front,.ta-back {
+  position:absolute;
+  inset:0;
+  border-radius:12px;
+  border:1px solid black;
+  backface-visibility:hidden;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
 }
 
-.ta-front {
-  background: #173063;
-  color: #e6eef8;
-  border: 1px solid black;
+.ta-front { background:#173063; }
+.ta-back  { background:#fff; color:#0b1220; transform:rotateY(180deg); }
+
+.editor {
+  flex:1;
+  background:transparent;
+  border:none;
+  resize:none;
+  padding:20px;
+  font-size:16px;
+  font-family:inherit;
+  color:inherit;
+  box-sizing:border-box;
 }
 
-.ta-back {
-  background: #ffffff;
-  color: #0b1220;
-  border: 1px solid black;
-  transform: rotateY(180deg);
+.preview {
+  flex:1;
+  padding:20px;
+  overflow:auto;
+  display:none;
+  background:#0b1220;
+  color:#e6eef8;
 }
-
-textarea {
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  color: inherit;
-  border: none;
-  resize: none;
-  padding: 20px;
-  font-size: 16px;
-  font-family: inherit;
-  box-sizing: border-box;
+.ta-back .preview {
+  background:#f0f0f0;
+  color:#000;
 }
 </style>
 </head>
-
 <body>
 
 <div class="ui">
@@ -126,8 +120,6 @@ textarea {
     <option value="'IBM Plex Mono', monospace">IBM Plex Mono</option>
     <option value="Times New Roman">Times New Roman</option>
     <option value="Arial">Arial</option>
-    <option value="Georgia">Georgia</option>
-    <option value="'Courier New'">Courier New</option>
   </select>
 
   <button id="decrease">A-</button>
@@ -136,158 +128,120 @@ textarea {
   <button id="reset">Reset</button>
   <button id="save">Save</button>
 
-  <button id="expandToggle" class="expand-btn">More ▼</button>
+  <button id="expandToggle">More ▼</button>
 
   <div id="expandPanel">
     <button id="hashBtn">SHA-256</button>
-    <hr style="border:0;border-top:1px solid #000;margin:8px 0;">
-    <button id="dlFront">front.txt</button>
-    <button id="dlBack">back.txt</button>
-    <button id="dlZip">both.zip</button>
+    <hr>
+    <button id="dlFront">Download front.txt</button>
+    <button id="dlBack">Download back.txt</button>
+    <button id="dlZip">Download both (zip)</button>
+    <hr>
+    <button id="toggleMath">MathJax Preview</button>
   </div>
 </div>
 
 <div class="ta-container" id="taContainer">
-  <div class="ta-wrap" id="taWrap">
+  <div class="ta-wrap">
+
     <div class="ta-front">
-      <textarea id="editorFront" placeholder="Front side..."></textarea>
+      <textarea id="editorFront" class="editor"></textarea>
+      <div id="previewFront" class="preview"></div>
     </div>
+
     <div class="ta-back">
-      <textarea id="editorBack" placeholder="Back side..."></textarea>
+      <textarea id="editorBack" class="editor"></textarea>
+      <div id="previewBack" class="preview"></div>
     </div>
+
   </div>
 </div>
 
 <script>
-const editorFront = document.getElementById('editorFront');
-const editorBack  = document.getElementById('editorBack');
-const fontSelect  = document.getElementById('fontSelect');
-const inc = document.getElementById('increase');
-const dec = document.getElementById('decrease');
-const flipBtn = document.getElementById('flip');
-const resetBtn = document.getElementById('reset');
-const container = document.getElementById('taContainer');
-const save = document.getElementById('save');
+const ef = editorFront, eb = editorBack;
+const pf = previewFront, pb = previewBack;
+let rotX=0, rotY=0, flipped=false;
+let mathOn=false;
 
-let rotX = 0, rotY = 0, flipped = false;
+fontSelect.onchange = e =>
+  [ef,eb].forEach(x=>x.style.fontFamily=e.target.value);
 
-fontSelect.addEventListener('change', () => {
-  editorFront.style.fontFamily = fontSelect.value;
-  editorBack.style.fontFamily  = fontSelect.value;
-});
+increase.onclick = () =>
+  [ef,eb].forEach(x=>x.style.fontSize =
+    parseInt(getComputedStyle(x).fontSize)+2+"px");
 
-inc.addEventListener('click', () =>
-  [editorFront, editorBack].forEach(el =>
-    el.style.fontSize = (parseInt(getComputedStyle(el).fontSize) + 2) + 'px')
-);
+decrease.onclick = () =>
+  [ef,eb].forEach(x=>x.style.fontSize =
+    Math.max(6,parseInt(getComputedStyle(x).fontSize)-2)+"px");
 
-dec.addEventListener('click', () =>
-  [editorFront, editorBack].forEach(el =>
-    el.style.fontSize = Math.max(parseInt(getComputedStyle(el).fontSize) - 2, 6) + 'px')
-);
-
-flipBtn.addEventListener('click', () => {
-  flipped = !flipped;
-  container.style.transform = `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg)`;
-});
-
-resetBtn.addEventListener('click', () => {
-  rotX = rotY = 0;
-  flipped = false;
-  container.style.transform = 'rotateX(0deg) rotateY(0deg)';
-});
-
-save.addEventListener('click', () => {
-  localStorage.setItem("diabolical_front", editorFront.value);
-  localStorage.setItem("diabolical_back", editorBack.value);
-});
-
-let dragging = false, px = 0, py = 0;
-
-container.addEventListener('mousedown', e => {
-  dragging = true; px = e.clientX; py = e.clientY;
-});
-
-window.addEventListener('mousemove', e => {
-  if (!dragging) return;
-  rotY += (e.clientX - px) * 0.5;
-  rotX -= (e.clientY - py) * 0.5;
-  container.style.transform =
-    `rotateX(${rotX}deg) rotateY(${rotY + (flipped ? 180 : 0)}deg)`;
-  px = e.clientX; py = e.clientY;
-});
-
-window.addEventListener('mouseup', () => dragging = false);
-
-const expandToggle = document.getElementById("expandToggle");
-const expandPanel = document.getElementById("expandPanel");
-expandToggle.addEventListener("click", () => {
-  const open = expandPanel.style.display === "block";
-  expandPanel.style.display = open ? "none" : "block";
-  expandToggle.textContent = open ? "More ▼" : "More ▲";
-});
-
-async function sha256(str) {
-  const buf = new TextEncoder().encode(str);
-  const hash = await crypto.subtle.digest("SHA-256", buf);
-  return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-
-async function applyHash() {
-  const active = flipped ? editorBack : editorFront;
-  const s = active.selectionStart, e = active.selectionEnd;
-  const text = s !== e ? active.value.slice(s,e) : active.value;
-  const h = await sha256(text);
-  if (s !== e) active.setRangeText(h, s, e, "end");
-  else active.value = h;
-}
-
-const hashBtn = document.getElementById("hashBtn");
-let hoverTimer, flashTimer;
-
-hashBtn.addEventListener("mouseenter", () => {
-  flashTimer = setTimeout(() => {
-    hashBtn.classList.add("flash");
-    setTimeout(()=>hashBtn.classList.remove("flash"),500);
-  },1500);
-  hoverTimer = setTimeout(applyHash,2000);
-});
-
-hashBtn.addEventListener("mouseleave", () => {
-  clearTimeout(hoverTimer);
-  clearTimeout(flashTimer);
-  hashBtn.classList.remove("flash");
-});
-
-function downloadFile(name, text) {
-  const blob = new Blob([text], {type:"text/plain"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-dlFront.onclick = () => downloadFile("front.txt", editorFront.value);
-dlBack.onclick  = () => downloadFile("back.txt",  editorBack.value);
-
-dlZip.onclick = async () => {
-  const zip = new JSZip();
-  zip.file("front.txt", editorFront.value);
-  zip.file("back.txt", editorBack.value);
-  const blob = await zip.generateAsync({type:"blob"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "both.zip";
-  a.click();
-  URL.revokeObjectURL(a.href);
+flip.onclick = () => {
+  flipped=!flipped;
+  taContainer.style.transform =
+    `rotateX(${rotX}deg) rotateY(${rotY+(flipped?180:0)}deg)`;
 };
 
-window.addEventListener("DOMContentLoaded", () => {
-  editorFront.value = localStorage.getItem("diabolical_front") || "";
-  editorBack.value  = localStorage.getItem("diabolical_back")  || "";
-});
-</script>
+reset.onclick = () => {
+  rotX=rotY=0; flipped=false;
+  taContainer.style.transform="rotateX(0) rotateY(0)";
+};
 
+save.onclick = () => {
+  localStorage.setItem("df",ef.value);
+  localStorage.setItem("db",eb.value);
+};
+
+toggleMath.onclick = () => {
+  mathOn=!mathOn;
+  [pf,pb].forEach(p=>p.style.display=mathOn?"block":"none");
+  [ef,eb].forEach(e=>e.style.flex=mathOn?"1":"1");
+  updateMath();
+};
+
+function updateMath(){
+  if(!mathOn) return;
+  pf.textContent=ef.value;
+  pb.textContent=eb.value;
+  MathJax.typesetPromise([pf,pb]);
+}
+ef.oninput=eb.oninput=updateMath;
+
+let drag=false, px=0, py=0;
+taContainer.onmousedown=e=>{drag=true;px=e.clientX;py=e.clientY};
+onmouseup=()=>drag=false;
+onmousemove=e=>{
+  if(!drag)return;
+  rotY+=(e.clientX-px)*0.5;
+  rotX-=(e.clientY-py)*0.5;
+  taContainer.style.transform =
+    `rotateX(${rotX}deg) rotateY(${rotY+(flipped?180:0)}deg)`;
+  px=e.clientX; py=e.clientY;
+};
+
+expandToggle.onclick = () => {
+  const o = expandPanel.style.display==="block";
+  expandPanel.style.display=o?"none":"block";
+  expandToggle.textContent=o?"More ▼":"More ▲";
+};
+
+function dl(name,text){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([text]));
+  a.download=name; a.click(); URL.revokeObjectURL(a.href);
+}
+dlFront.onclick=()=>dl("front.txt",ef.value);
+dlBack.onclick =()=>dl("back.txt", eb.value);
+dlZip.onclick  =async()=>{
+  const z=new JSZip();
+  z.file("front.txt",ef.value);
+  z.file("back.txt", eb.value);
+  const b=await z.generateAsync({type:"blob"});
+  dl("texts.zip",b);
+};
+
+window.onload=()=>{
+  ef.value=localStorage.getItem("df")||"";
+  eb.value=localStorage.getItem("db")||"";
+};
+</script>
 </body>
 </html>
