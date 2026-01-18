@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cells</title>
+  <style>
+    @keyframes popOut {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(1.5);
+        opacity: 0;
+      }
+    }
+
+    .cell.pop {
+      animation: popOut 200ms ease-out forwards;
+      pointer-events: none;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 6px 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    #controls button {
+      margin-right: 5px;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 6px;
+      background: #ddd;
+      cursor: pointer;
+    }
+
+    #controls button.active {
+      background: #4caf50;
+      color: white;
+    }
+
+    #container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      background-color: #ffffff;
+    }
+
+    .cell {
+      width: 50px;
+      height: 50px;
+      background-color: #4caf50;
+      border-radius: 50%;
+      position: absolute;
+      cursor: grab;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      transition: box-shadow 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: white;
+      font-size: 16px;
+    }
+
+    .cell:active {
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+    }
+    .particle {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: #4caf50;
+      border-radius: 50%;
+      pointer-events: none;
+      animation: particleMove 500ms ease-out forwards;
+    }
+
+    .red {
+      background-color: red;
+    }
+
+    @keyframes particleMove {
+      0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(var(--dx), var(--dy)) scale(0.5);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <button data-mode="split" class="active">Split</button>
+    <button data-mode="drag">Drag</button>
+    <button data-mode="delete">Delete</button>
+    <button id="destroyAll" style="background-color: red; color: white;">Destroy All</button>
+  </div>
+  <div id="container">
+    <div class="cell" style="top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>
+  </div>
+
+  <script>
+    const container = document.getElementById('container');
+    const buttons = document.querySelectorAll('#controls button');
+    let currentMode = 'split';
+    const bounceAudio = new Audio('https://www.myinstants.com/media/sounds/boing_lmke36X.mp3');
+    bounceAudio.preload = 'auto';
+    const popAudio = new Audio('http://myinstants.com/media/sounds/pop_7e9Is8L.mp3');
+    popAudio.preload = 'auto';
+    const splitAudio = new Audio('http://myinstants.com/media/sounds/among-us-kill-sound-effect-hd_gIEZqxo.mp3');
+    splitAudio.preload = 'auto';
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentMode = btn.getAttribute('data-mode');
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    function shiftColor(rgb, hueShift) {
+      const div = document.createElement('div');
+      div.style.color = rgb;
+      document.body.appendChild(div);
+      const computed = getComputedStyle(div).color;
+      document.body.removeChild(div);
+
+      const [r, g, b] = computed.match(/\d+/g).map(Number);
+      let [h, s, l] = rgbToHsl(r, g, b);
+      h = (h + hueShift + 360) % 360;
+      return `hsl(${h}, ${s}%, ${l}%)`;
+    }
+
+    function rgbToHsl(r, g, b) {
+      r /= 255; g /= 255; b /= 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h, s, l = (max + min) / 2;
+      if (max === min) {
+        h = s = 0;
+      } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch(max){
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          case b: h = (r - g) / d + 4; break;
+        }
+        h *= 60;
+      }
+      return [h, s * 100, l * 100];
+    }
+
+    function createCell(rect, baseColor) {
+      const newCell = document.createElement('div');
+      newCell.className = 'cell';
+
+      const newColor = shiftColor(baseColor, Math.random() * 30 - 15);
+      newCell.style.backgroundColor = newColor;
+
+      newCell.style.top = `${rect.top}px`;
+      newCell.style.left = `${rect.left}px`;
+      container.appendChild(newCell);
+
+      let velocity = { x: Math.random() * 6 - 3, y: Math.random() * 6 - 3 };
+      animateCell(newCell, velocity);
+      makeDraggable(newCell);
+    }
+
+    function pop(cell,red=false) {
+      cell.classList.add('pop');
+      if (red) {
+        cell.classList.add('red')
+      }
+      const numParticles = 12;
+      const rect = cell.getBoundingClientRect();
+      const originX = rect.left + rect.width / 2;
+      const originY = rect.top + rect.height / 2;
+      for (let i = 0; i < numParticles; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        if (red) {
+          particle.className += ' red'
+        }
+        const angle = Math.random() * 2 * Math.PI;
+        const distance = 30 + Math.random() * 20;
+        const dx = Math.cos(angle) * distance;
+        const dy = Math.sin(angle) * distance;
+        particle.style.left = `${originX}px`;
+        particle.style.top = `${originY}px`;
+        particle.style.setProperty('--dx', `${dx}px`);
+        particle.style.setProperty('--dy', `${dy}px`);
+        document.body.appendChild(particle);
+        setTimeout(() => {
+          particle.remove();
+        }, 500);
+      }
+      setTimeout(() => {
+        if (cell.parentNode) {
+          container.removeChild(cell);
+        }
+      }, 200);
+    }
+
+    container.addEventListener('click', (e) => {
+      if (!e.target.classList.contains('cell')) return;
+      const cell = e.target;
+      if (currentMode === 'split') {
+        const rect = cell.getBoundingClientRect();
+        const baseColor = getComputedStyle(cell).backgroundColor;
+
+        splitAudio.currentTime = 0;
+        splitAudio.play();
+
+        createCell(rect, baseColor);
+        createCell(rect, baseColor);
+
+        container.removeChild(cell);
+      } else if (currentMode === 'delete') {
+        popAudio.currentTime=0;
+        popAudio.play();
+        pop(cell);
+      }
+    });
+
+    function animateCell(cell, velocity) {
+      const interval = setInterval(() => {
+        const cellWidth = cell.offsetWidth;
+        const cellHeight = cell.offsetHeight;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        let top = parseFloat(cell.style.top) || 0;
+        let left = parseFloat(cell.style.left) || 0;
+        top += velocity.y;
+        left += velocity.x;
+        let bounced = false;
+        if (left <= 0 || left + cellWidth >= containerWidth) {
+          velocity.x *= -1;
+          left = Math.max(0, Math.min(left, containerWidth - cellWidth));
+          bounced = true;
+        }
+        if (top <= 0 || top + cellHeight >= containerHeight) {
+          velocity.y *= -1;
+          top = Math.max(0, Math.min(top, containerHeight - cellHeight));
+          bounced = true;
+        }
+        if (bounced) {
+          bounceAudio.currentTime = 0;
+          bounceAudio.play();
+        }
+        cell.style.left = `${left}px`;
+        cell.style.top = `${top}px`;
+        velocity.x *= 0.99;
+        velocity.y *= 0.99;
+        if (Math.abs(velocity.x) < 0.1 && Math.abs(velocity.y) < 0.1) {
+          clearInterval(interval);
+        }
+      }, 16);
+    }
+
+    function makeDraggable(cell) {
+      let offsetX = 0;
+      let offsetY = 0;
+      let activeElement = null;
+      cell.addEventListener('mousedown', (e) => {
+        if (currentMode !== 'drag') return;
+        activeElement = cell;
+        offsetX = e.clientX - cell.offsetLeft;
+        offsetY = e.clientY - cell.offsetTop;
+        cell.style.cursor = 'grabbing';
+      });
+      document.addEventListener('mousemove', (e) => {
+        if (!activeElement || currentMode !== 'drag') return;
+        activeElement.style.left = `${e.clientX - offsetX}px`;
+        activeElement.style.top = `${e.clientY - offsetY}px`;
+      });
+      document.addEventListener('mouseup', () => {
+        if (activeElement) {
+          activeElement.style.cursor = 'grab';
+          activeElement = null;
+        }
+      });
+    }
+
+    document.getElementById('destroyAll').addEventListener('click', () => {
+      const cells = container.querySelectorAll('.cell');
+      popAudio.currentTime=0;
+      popAudio.play();
+      cells.forEach(cell => {
+        pop(cell,true);
+      });
+      setTimeout(() => {
+        container.innerHTML = '<div class="cell" style="top: 50%; left: 50%; transform: translate(-50%, -50%);"></div>';
+        document.querySelectorAll('.cell').forEach(makeDraggable);
+      }, 220);
+    });
+
+    document.querySelectorAll('.cell').forEach(makeDraggable);
+  </script>
+</body>
+</html>
