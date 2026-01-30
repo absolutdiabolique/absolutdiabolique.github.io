@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TypeTris</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body.theme-dark {
+            background-color: rgb(18, 18, 20);
+            color: rgb(180, 160, 180);
+        }
+
+        body.theme-purple {
+            background-color: rgb(48, 8, 47);
+            color: rgb(180, 120, 180);
+        }
+
+        body.theme-blue {
+            background-color: rgb(8, 28, 48);
+            color: rgb(120, 160, 180);
+        }
+
+        body.theme-red {
+            background-color: rgb(48, 12, 12);
+            color: rgb(200, 140, 140);
+        }
+
+        .container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+        }
+
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        canvas {
+            border: 2px solid currentColor;
+            display: block;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 250px;
+        }
+
+        .control-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border: 1px solid currentColor;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .control-symbol {
+            font-size: 20px;
+            font-weight: bold;
+            min-width: 30px;
+        }
+
+        .control-word {
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .control-word .letter {
+            display: inline-block;
+            transition: color 0.1s;
+        }
+
+        .control-word .letter.matched {
+            color: inherit;
+            opacity: 1;
+            text-shadow: 0 0 8px currentColor;
+        }
+
+        .control-word .letter.unmatched {
+            opacity: 0.3;
+        }
+
+        .input-display {
+            padding: 12px;
+            border: 2px solid currentColor;
+            border-radius: 4px;
+            font-size: 16px;
+            letter-spacing: 2px;
+            text-align: center;
+            min-height: 40px;
+            font-weight: bold;
+        }
+
+        .score-display {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .score-item {
+            padding: 8px 12px;
+            border: 1px solid currentColor;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 30px 50px;
+            border: 3px solid currentColor;
+            background-color: rgba(0, 0, 0, 0.9);
+            font-size: 24px;
+            text-align: center;
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .game-over.show {
+            display: flex;
+        }
+
+        .button {
+            padding: 10px 20px;
+            border: 2px solid currentColor;
+            background: transparent;
+            color: currentColor;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .button:hover {
+            background: currentColor;
+            color: black;
+        }
+
+        .help {
+            font-size: 12px;
+            opacity: 0.7;
+            text-align: center;
+            max-width: 250px;
+        }
+
+        .highlight {
+            animation: pulse 0.3s ease;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body class="theme-dark">
+    <div class="container">
+        <div class="game-area">
+            <canvas id="tetris" width="300" height="600"></canvas>
+            <div class="input-display" id="inputDisplay"></div>
+            <button class="button" onclick="changeTheme()">Change Theme</button>
+        </div>
+        
+        <div class="controls">
+            <div class="score-display">
+                <div class="score-item">
+                    <span>Score:</span>
+                    <span id="score">0</span>
+                </div>
+                <div class="score-item">
+                    <span>Lines:</span>
+                    <span id="lines">0</span>
+                </div>
+                <div class="score-item">
+                    <span>Level:</span>
+                    <span id="level">1</span>
+                </div>
+                <div class="score-item">
+                    <span>High:</span>
+                    <span id="highScore">0</span>
+                </div>
+            </div>
+            
+            <div class="control-item" id="rotateLeft">
+                <span class="control-symbol">↺</span>
+                <span class="control-word" id="rotateLeftWord">TWIRLER</span>
+            </div>
+            <div class="control-item" id="rotateRight">
+                <span class="control-symbol">↻</span>
+                <span class="control-word" id="rotateRightWord">SPINNER</span>
+            </div>
+            <div class="control-item" id="moveLeft">
+                <span class="control-symbol">←</span>
+                <span class="control-word" id="moveLeftWord">LEFTIST</span>
+            </div>
+            <div class="control-item" id="moveRight">
+                <span class="control-symbol">→</span>
+                <span class="control-word" id="moveRightWord">RIGHTLY</span>
+            </div>
+            <div class="control-item" id="moveDown">
+                <span class="control-symbol">↓</span>
+                <span class="control-word" id="moveDownWord">DESCEND</span>
+            </div>
+            <div class="control-item" id="hardDrop">
+                <span class="control-symbol">↑</span>
+                <span class="control-word" id="hardDropWord">PLUNGER</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <div>GAME OVER</div>
+        <div>Final Score: <span id="finalScore">0</span></div>
+        <button class="button" onclick="resetGame()">Play Again</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('tetris');
+        const ctx = canvas.getContext('2d');
+        const BLOCK_SIZE = 30;
+        const COLS = 10;
+        const ROWS = 20;
+
+        // Word pools for each action (all 7 letters)
+        const wordPools = {
+            rotateLeft: ['TWIRLER', 'BAGGAGE', 'KITCHEN', 'CLIMATE', 'FORTUNE', 'GENUINE', 'HIGHWAY', 'MUSICAL', 'PATTERN', 'RAINBOW', 'SPEAKER', 'TENSION', 'UNUSUAL', 'BLANKET', 'CABINET', 'DESTINY'],
+            rotateRight: ['SPINNER', 'ANCIENT', 'BALANCE', 'CLASSIC', 'DYNAMIC', 'FREEDOM', 'HORIZON', 'JOURNEY', 'KINGDOM', 'NEITHER', 'PUZZLES', 'QUALITY', 'SILENCE', 'VICTORY', 'WEATHER', 'BATTERY'],
+            moveLeft: ['LEFTIST', 'ABILITY', 'BALLOON', 'CAPABLE', 'DOLPHIN', 'FANTASY', 'GRAMMAR', 'HARVEST', 'IMAGINE', 'MONSTER', 'PENGUIN', 'PROJECT', 'RECEIPT', 'SUPPORT', 'THROUGH', 'CONTEXT'],
+            moveRight: ['RIGHTLY', 'ACADEMY', 'BEDROOM', 'CITIZEN', 'DIGITAL', 'EXTREME', 'GRAPHIC', 'HEALTHY', 'JEALOUS', 'LIBRARY', 'NETWORK', 'ORGANIC', 'PRIVACY', 'SPECIAL', 'URINARY', 'BLANKED'],
+            moveDown: ['DESCEND', 'ANOTHER', 'BENEFIT', 'CONCEPT', 'DISPLAY', 'ELEMENT', 'GENERAL', 'HOUSING', 'MINERAL', 'NUCLEAR', 'PARKING', 'REFLECT', 'SERIOUS', 'TEXTURE', 'VILLAGE', 'WRITTEN'],
+            hardDrop: ['PLUNGER', 'ADVANCE', 'CHAPTER', 'CORRECT', 'DOLPHIN', 'EMOTION', 'FEELING', 'GALLERY', 'INITIAL', 'MEASURE', 'OPINION', 'PACKAGE', 'POPULAR', 'REFUSED', 'SCIENCE', 'YOUNGER']
+        };
+
+        // Game state
+        let board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+        let score = 0;
+        let lines = 0;
+        let level = 1;
+        let gameOver = false;
+        let inputBuffer = '';
+        let currentPiece = null;
+        let dropCounter = 0;
+        let dropInterval = 1000;
+        let lastTime = 0;
+        let currentTheme = 0;
+        const themes = ['theme-dark', 'theme-purple', 'theme-blue', 'theme-red'];
+        let clearingLines = [];
+        let clearAnimationFrame = 0;
+        let highScore = parseInt(localStorage.getItem('wordTetrisHighScore') || '0');
+
+        // Current words for each action
+        let currentWords = {
+            rotateLeft: 'TWIRLER',
+            rotateRight: 'SPINNER',
+            moveLeft: 'LEFTIST',
+            moveRight: 'RIGHTLY',
+            moveDown: 'DESCEND',
+            hardDrop: 'PLUNGER'
+        };
+
+        // Tetromino shapes
+        const PIECES = {
+            'I': [[1,1,1,1]],
+            'O': [[1,1],[1,1]],
+            'T': [[0,1,0],[1,1,1]],
+            'S': [[0,1,1],[1,1,0]],
+            'Z': [[1,1,0],[0,1,1]],
+            'J': [[1,0,0],[1,1,1]],
+            'L': [[0,0,1],[1,1,1]]
+        };
+
+        const COLORS = {
+            'I': 'rgb(100, 180, 200)',
+            'O': 'rgb(200, 180, 100)',
+            'T': 'rgb(160, 100, 180)',
+            'S': 'rgb(120, 180, 120)',
+            'Z': 'rgb(200, 120, 120)',
+            'J': 'rgb(100, 120, 180)',
+            'L': 'rgb(200, 150, 100)'
+        };
+
+        class Piece {
+            constructor() {
+                const types = Object.keys(PIECES);
+                this.type = types[Math.floor(Math.random() * types.length)];
+                this.shape = PIECES[this.type];
+                this.color = COLORS[this.type];
+                this.x = Math.floor(COLS / 2) - Math.floor(this.shape[0].length / 2);
+                this.y = 0;
+            }
+
+            rotate(clockwise = true) {
+                const newShape = [];
+                if (clockwise) {
+                    for (let i = 0; i < this.shape[0].length; i++) {
+                        newShape[i] = [];
+                        for (let j = this.shape.length - 1; j >= 0; j--) {
+                            newShape[i].push(this.shape[j][i]);
+                        }
+                    }
+                } else {
+                    for (let i = this.shape[0].length - 1; i >= 0; i--) {
+                        newShape[this.shape[0].length - 1 - i] = [];
+                        for (let j = 0; j < this.shape.length; j++) {
+                            newShape[this.shape[0].length - 1 - i].push(this.shape[j][i]);
+                        }
+                    }
+                }
+                
+                const oldShape = this.shape;
+                this.shape = newShape;
+                
+                if (this.collides()) {
+                    this.shape = oldShape;
+                    return false;
+                }
+                return true;
+            }
+
+            move(dx, dy) {
+                this.x += dx;
+                this.y += dy;
+                
+                if (this.collides()) {
+                    this.x -= dx;
+                    this.y -= dy;
+                    return false;
+                }
+                return true;
+            }
+
+            collides() {
+                for (let y = 0; y < this.shape.length; y++) {
+                    for (let x = 0; x < this.shape[y].length; x++) {
+                        if (this.shape[y][x]) {
+                            const newX = this.x + x;
+                            const newY = this.y + y;
+                            
+                            if (newX < 0 || newX >= COLS || newY >= ROWS) {
+                                return true;
+                            }
+                            
+                            if (newY >= 0 && board[newY][newX]) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            lock() {
+                for (let y = 0; y < this.shape.length; y++) {
+                    for (let x = 0; x < this.shape[y].length; x++) {
+                        if (this.shape[y][x]) {
+                            const boardY = this.y + y;
+                            const boardX = this.x + x;
+                            if (boardY >= 0) {
+                                board[boardY][boardX] = this.color;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function getRandomWord(pool, exclude) {
+            const available = pool.filter(word => word !== exclude);
+            return available[Math.floor(Math.random() * available.length)];
+        }
+
+        function updateWord(action) {
+            const pool = wordPools[action];
+            const newWord = getRandomWord(pool, currentWords[action]);
+            currentWords[action] = newWord;
+            
+            // Wrap each letter in a span for individual highlighting
+            const wordElement = document.getElementById(action + 'Word');
+            wordElement.innerHTML = newWord.split('').map(letter => 
+                `<span class="letter unmatched">${letter}</span>`
+            ).join('');
+            
+            // Highlight the control
+            document.getElementById(action).classList.add('highlight');
+            setTimeout(() => {
+                document.getElementById(action).classList.remove('highlight');
+            }, 300);
+        }
+
+        function updateLetterHighlights() {
+            const buffer = inputBuffer.slice(-7).toUpperCase();
+            
+            for (const action in currentWords) {
+                const word = currentWords[action];
+                const wordElement = document.getElementById(action + 'Word');
+                const letters = wordElement.querySelectorAll('.letter');
+                
+                for (let i = 0; i < letters.length; i++) {
+                    if (i < buffer.length && buffer[i] === word[i]) {
+                        letters[i].classList.remove('unmatched');
+                        letters[i].classList.add('matched');
+                    } else {
+                        letters[i].classList.remove('matched');
+                        letters[i].classList.add('unmatched');
+                    }
+                }
+            }
+        }
+
+        function checkInput() {
+            if (inputBuffer.length < 7) return;
+            
+            const last7 = inputBuffer.slice(-7).toUpperCase();
+            
+            if (last7 === currentWords.rotateLeft) {
+                currentPiece.rotate(false);
+                updateWord('rotateLeft');
+            } else if (last7 === currentWords.rotateRight) {
+                currentPiece.rotate(true);
+                updateWord('rotateRight');
+            } else if (last7 === currentWords.moveLeft) {
+                currentPiece.move(-1, 0);
+                updateWord('moveLeft');
+            } else if (last7 === currentWords.moveRight) {
+                currentPiece.move(1, 0);
+                updateWord('moveRight');
+            } else if (last7 === currentWords.moveDown) {
+                currentPiece.move(0, 1);
+                updateWord('moveDown');
+            } else if (last7 === currentWords.hardDrop) {
+                while (currentPiece.move(0, 1)) {}
+                lockPiece();
+                updateWord('hardDrop');
+            }
+        }
+
+        function lockPiece() {
+            currentPiece.lock();
+            clearLines();
+            currentPiece = new Piece();
+            
+            if (currentPiece.collides()) {
+                gameOver = true;
+                document.getElementById('gameOver').classList.add('show');
+                document.getElementById('finalScore').textContent = score;
+            }
+        }
+
+        function clearLines() {
+            const linesToClear = [];
+            
+            for (let y = ROWS - 1; y >= 0; y--) {
+                if (board[y].every(cell => cell !== 0)) {
+                    linesToClear.push(y);
+                }
+            }
+            
+            if (linesToClear.length > 0) {
+                clearingLines = linesToClear;
+                clearAnimationFrame = 0;
+                animateLineClear();
+            }
+        }
+
+        function animateLineClear() {
+            if (clearAnimationFrame < 10) {
+                clearAnimationFrame++;
+                setTimeout(() => {
+                    draw();
+                    animateLineClear();
+                }, 50);
+            } else {
+                // Actually remove the lines
+                clearingLines.sort((a, b) => a - b);
+                for (const y of clearingLines) {
+                    board.splice(y, 1);
+                    board.unshift(Array(COLS).fill(0));
+                }
+                
+                const linesCleared = clearingLines.length;
+                lines += linesCleared;
+                score += [0, 100, 300, 500, 800][linesCleared] * level;
+                level = Math.floor(lines / 10) + 1;
+                dropInterval = Math.max(100, 1000 - (level - 1) * 100);
+                
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('wordTetrisHighScore', highScore.toString());
+                    document.getElementById('highScore').textContent = highScore;
+                }
+                
+                document.getElementById('score').textContent = score;
+                document.getElementById('lines').textContent = lines;
+                document.getElementById('level').textContent = level;
+                
+                clearingLines = [];
+                clearAnimationFrame = 0;
+            }
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = getComputedStyle(document.body).backgroundColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw board with retro scanline effect
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (board[y][x]) {
+                        // Check if this line is being cleared
+                        let alpha = 1;
+                        if (clearingLines.includes(y)) {
+                            alpha = Math.abs(Math.sin(clearAnimationFrame * 0.8)) * 0.8;
+                        }
+                        
+                        ctx.globalAlpha = alpha;
+                        ctx.fillStyle = board[y][x];
+                        ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
+                        
+                        // Retro scanline effect - lighter at top
+                        ctx.globalAlpha = alpha * 0.15;
+                        ctx.fillStyle = 'white';
+                        const scanlineOffset = (y * BLOCK_SIZE + (Date.now() / 50) % BLOCK_SIZE);
+                        for (let scan = 0; scan < BLOCK_SIZE; scan += 2) {
+                            ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE + scan, BLOCK_SIZE - 1, 1);
+                        }
+                        ctx.globalAlpha = 1;
+                    }
+                }
+            }
+            
+            // Draw current piece
+            if (currentPiece && clearingLines.length === 0) {
+                ctx.fillStyle = currentPiece.color;
+                for (let y = 0; y < currentPiece.shape.length; y++) {
+                    for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                        if (currentPiece.shape[y][x]) {
+                            ctx.fillRect(
+                                (currentPiece.x + x) * BLOCK_SIZE,
+                                (currentPiece.y + y) * BLOCK_SIZE,
+                                BLOCK_SIZE - 1,
+                                BLOCK_SIZE - 1
+                            );
+                            
+                            // Retro scanline effect
+                            ctx.globalAlpha = 0.15;
+                            ctx.fillStyle = 'white';
+                            for (let scan = 0; scan < BLOCK_SIZE; scan += 2) {
+                                ctx.fillRect(
+                                    (currentPiece.x + x) * BLOCK_SIZE,
+                                    (currentPiece.y + y) * BLOCK_SIZE + scan,
+                                    BLOCK_SIZE - 1,
+                                    1
+                                );
+                            }
+                            ctx.globalAlpha = 1;
+                            ctx.fillStyle = currentPiece.color;
+                        }
+                    }
+                }
+            }
+        }
+
+        function update(time = 0) {
+            if (gameOver) return;
+            
+            const deltaTime = time - lastTime;
+            lastTime = time;
+            
+            // Don't update game logic during line clear animation
+            if (clearingLines.length === 0) {
+                dropCounter += deltaTime;
+                
+                if (dropCounter > dropInterval) {
+                    if (!currentPiece.move(0, 1)) {
+                        lockPiece();
+                    }
+                    dropCounter = 0;
+                }
+            }
+            
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        function resetGame() {
+            board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+            score = 0;
+            lines = 0;
+            level = 1;
+            gameOver = false;
+            inputBuffer = '';
+            dropCounter = 0;
+            dropInterval = 1000;
+            currentPiece = new Piece();
+            clearingLines = [];
+            clearAnimationFrame = 0;
+            
+            document.getElementById('score').textContent = score;
+            document.getElementById('lines').textContent = lines;
+            document.getElementById('level').textContent = level;
+            document.getElementById('highScore').textContent = highScore;
+            document.getElementById('gameOver').classList.remove('show');
+            document.getElementById('inputDisplay').textContent = '';
+            
+            // Initialize all control words with letter spans
+            for (const action in currentWords) {
+                updateWord(action);
+            }
+            
+            update();
+        }
+
+        function changeTheme() {
+            document.body.classList.remove(themes[currentTheme]);
+            currentTheme = (currentTheme + 1) % themes.length;
+            document.body.classList.add(themes[currentTheme]);
+        }
+
+        // Input handling
+        document.addEventListener('keydown', (e) => {
+            if (gameOver) return;
+            
+            if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
+                inputBuffer += e.key.toUpperCase();
+                
+                // Keep only last 10 characters for display
+                if (inputBuffer.length > 10) {
+                    inputBuffer = inputBuffer.slice(-10);
+                }
+                
+                document.getElementById('inputDisplay').textContent = inputBuffer;
+                updateLetterHighlights();
+                checkInput();
+            }
+        });
+
+        // Initialize game
+        document.getElementById('highScore').textContent = highScore;
+        
+        // Initialize all control words with letter spans
+        for (const action in currentWords) {
+            const word = currentWords[action];
+            const wordElement = document.getElementById(action + 'Word');
+            wordElement.innerHTML = word.split('').map(letter => 
+                `<span class="letter unmatched">${letter}</span>`
+            ).join('');
+        }
+        
+        currentPiece = new Piece();
+        update();
+    </script>
+</body>
+</html>
