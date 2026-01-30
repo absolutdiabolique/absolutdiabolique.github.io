@@ -622,7 +622,6 @@
                     }
                 }
             }
-
             lock() {
                 for (let y = 0; y < this.shape.length; y++) {
                     for (let x = 0; x < this.shape[y].length; x++) {
@@ -630,7 +629,10 @@
                             const boardY = this.y + y;
                             const boardX = this.x + x;
                             if (boardY >= 0) {
-                                // Add transition animation
+                                // Write to board immediately
+                                board[boardY][boardX] = this.color;
+
+                                // Keep transition animation
                                 transitionCells.push({
                                     x: boardX,
                                     y: boardY,
