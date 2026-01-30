@@ -972,19 +972,26 @@
                     animateLineClear();
                 }, 50);
             } else {
-                // Actually remove the lines
-                clearingLines.sort((a, b) => a - b);
+                // 1. Sort lines from highest index to lowest (bottom to top)
+                // This prevents index shifting issues during splice
+                clearingLines.sort((a, b) => b - a);
+            
+                const linesCleared = clearingLines.length;
+            
                 for (const y of clearingLines) {
+                    // Remove the specific row
                     board.splice(y, 1);
+                    // Add a fresh empty row at the very top
                     board.unshift(Array(COLS).fill(0));
                 }
                 
-                const linesCleared = clearingLines.length;
+                // 2. Update Stats
                 lines += linesCleared;
                 score += [0, 100, 300, 500, 800][linesCleared] * level;
                 level = Math.floor(lines / 10) + 1;
                 dropInterval = Math.max(100, 1000 - (level - 1) * 100);
                 
+                // 3. High Score & UI Logic
                 if (score > highScore) {
                     highScore = score;
                     localStorage.setItem('wordTetrisHighScore', highScore.toString());
@@ -995,8 +1002,12 @@
                 document.getElementById('lines').textContent = lines;
                 document.getElementById('level').textContent = level;
                 
+                // 4. Reset animation state
                 clearingLines = [];
                 clearAnimationFrame = 0;
+            
+                // 5. IMPORTANT: Resume the game loop or spawn a new piece here
+                // drop(); 
             }
         }
 
