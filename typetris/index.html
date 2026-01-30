@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TypeTris</title>
+    <title>Word Tetris</title>
     <style>
         * {
             margin: 0;
@@ -184,6 +184,7 @@
             <canvas id="tetris" width="300" height="600"></canvas>
             <div class="input-display" id="inputDisplay"></div>
             <button class="button" onclick="changeTheme()">Change Theme</button>
+            <div class="help">Type 7-letter words to control the pieces. Words change after each use!</div>
         </div>
         
         <div class="controls">
@@ -199,6 +200,10 @@
                 <div class="score-item">
                     <span>Level:</span>
                     <span id="level">1</span>
+                </div>
+                <div class="score-item">
+                    <span>CPS:</span>
+                    <span id="cps">0.0</span>
                 </div>
                 <div class="score-item">
                     <span>High:</span>
@@ -230,6 +235,10 @@
                 <span class="control-symbol">↑</span>
                 <span class="control-word" id="hardDropWord">PLUNGER</span>
             </div>
+            <div class="control-item" id="hold">
+                <span class="control-symbol">↔</span>
+                <span class="control-word" id="holdWord">STORAGE</span>
+            </div>
         </div>
     </div>
 
@@ -246,15 +255,42 @@
         const COLS = 10;
         const ROWS = 20;
 
-        // Word pools for each action (all 7 letters)
-        const wordPools = {
-            rotateLeft: ['TWIRLER', 'BAGGAGE', 'KITCHEN', 'CLIMATE', 'FORTUNE', 'GENUINE', 'HIGHWAY', 'MUSICAL', 'PATTERN', 'RAINBOW', 'SPEAKER', 'TENSION', 'UNUSUAL', 'BLANKET', 'CABINET', 'DESTINY'],
-            rotateRight: ['SPINNER', 'ANCIENT', 'BALANCE', 'CLASSIC', 'DYNAMIC', 'FREEDOM', 'HORIZON', 'JOURNEY', 'KINGDOM', 'NEITHER', 'PUZZLES', 'QUALITY', 'SILENCE', 'VICTORY', 'WEATHER', 'BATTERY'],
-            moveLeft: ['LEFTIST', 'ABILITY', 'BALLOON', 'CAPABLE', 'DOLPHIN', 'FANTASY', 'GRAMMAR', 'HARVEST', 'IMAGINE', 'MONSTER', 'PENGUIN', 'PROJECT', 'RECEIPT', 'SUPPORT', 'THROUGH', 'CONTEXT'],
-            moveRight: ['RIGHTLY', 'ACADEMY', 'BEDROOM', 'CITIZEN', 'DIGITAL', 'EXTREME', 'GRAPHIC', 'HEALTHY', 'JEALOUS', 'LIBRARY', 'NETWORK', 'ORGANIC', 'PRIVACY', 'SPECIAL', 'URINARY', 'BLANKED'],
-            moveDown: ['DESCEND', 'ANOTHER', 'BENEFIT', 'CONCEPT', 'DISPLAY', 'ELEMENT', 'GENERAL', 'HOUSING', 'MINERAL', 'NUCLEAR', 'PARKING', 'REFLECT', 'SERIOUS', 'TEXTURE', 'VILLAGE', 'WRITTEN'],
-            hardDrop: ['PLUNGER', 'ADVANCE', 'CHAPTER', 'CORRECT', 'DOLPHIN', 'EMOTION', 'FEELING', 'GALLERY', 'INITIAL', 'MEASURE', 'OPINION', 'PACKAGE', 'POPULAR', 'REFUSED', 'SCIENCE', 'YOUNGER']
+        // Fixed word list for reliability
+        const allWords = ["BURBLED","AGAROSE","CONCORD","HANKIES","KINFOLK","STOGIES","BELIERS","TENABLY","UTERINE","COUNSEL","BISNAGA","FUSSIER","CENSING","LIEVEST","IMPETUS","DREIDEL","BUDLIKE","REFACED","SEGGARS","APRONED","PHOTONS","COZYING","REFRIES","DEPSIDE","TREEING","GUMLESS","FULGENT","MEETERS","PIMPLED","MEANING","OCTADIC","SECEDED","HELLION","FATNESS","CONICAL","FITNESS","LIQUEFY","NIVEOUS","PATHWAY","WISPISH","ZOECIUM","SKYDOVE","WRASTLE","WISHFUL","EMBRYOS","BOULLES","BOOKIES","TABETIC","EYEBEAM","TRAVOIS","ONANISM","PARESES","DYSPNEA","UNSEXES","SEAREST","TAXABLY","RECLADS","DEPENDS","DIRLING","OPTICAL","PRINCES","ANGLERS","AMATIVE","GOOMBAH","ADDICTS","MANPACK","GASLESS","PRODIGY","WINTERS","INWEAVE","COOTIES","MODISTE","SUBRENT","SIMPERS","VITAMIN","PROPERS","DUMDUMS","FERRATE","COUNCIL","DONNERD","PLEXORS","COMPASS","TABLOID","TRAWLER","DICTATE","MIMEOED","POPEDOM","SPADING","HUNKIER","MUTEDLY","CLOTHED","KINEMAS","TOONIES","ACARINE","MEGOHMS","OFTENER","SUNSPOT","OUTROWS","COMPOST","FLUNKEY","HOCKING","PRANCES","TELEXES","HOTDOGS","RIFLING","RUGOSAS","PASTIME","BOLTERS","TACKING","SALSIFY","AGNATES","TAGMEME","TOLUIDS","JILTERS","EXALTER","COOKEYS","FLUIDLY","MIREXES","PSAMMON","FRAGILE","FACULTY","APSIDES","BAITING","ROOKIES","CHAPMAN","ORGANUM","ARMOURY","PYRIDIC","FRANKLY","FOLDING","SHOWILY","KITTIES","COSHERS","TAMBAKS","LABORED","VOUCHER","QUERIDA","SCOTIAS","AMOTION","MISDIAL","NASTIES","WAMUSES","VAMOSED","MAZURKA","TURBOTS","TUFTILY","PEPINOS","MILLERS","JOGGLES","FINNIER","CATTING","DOMICIL","CARAFES","UNBENDS","CALZONE","HILLIER","UPBOILS","TOWBOAT","CASQUED","FIGURER","REBUFFS","BUCKRAS","SNOOTED","HEPTANE","SCHERZI","CLUBBER","BREWAGE","SIDEWAY","LOOPILY","BLOWOUT","MANLIER","CROSSES","GRAVITY","LUMBAGO","SALICIN","SHEDDER","WITHOUT","CASSIAS","MINIBUS","FLAGMAN","AGONISE","SONSIER","SWIPING","MISBIAS","ASTHENY","SCAMMER","BRIDLES","UNCAGES","GOPHERS","CHYTRID","NUCLEAR","RANDIER","BULRUSH","PISCINE","TRUSTEE","VERISTS","ADEEMED","ZECCHIN","UPFLOWS","UNRAVEL","PASSELS","RUNOVER","BIGTIME","SCHLOCK","TRYSTES","PANDECT","AGONIZE","MILITIA","COMPUTE","GORGERS","FORMOLS","REIVING","TOPPLES","EXCLAVE","SYNGAMY","LIMPING","GAPPIER","RIMLESS","CAULKER","SQUINTY","OUTKEPT","UPHILLS","LACQUER","ELEGANT","CHUPPAH","LADLING","GAUDILY","DARNELS","DEBACLE","HUNKERS","SATRAPY","WRICKED","JUMBLES","MONGOES","IDEATED","SLOPING","KITSCHY","TABORIN","POTENCY","GERBERA","JEERERS","STIPULE","FENDERS","AURORAE","OGHAMIC","TIPPING","VENGING","UNMITRE","SLIGHTS","FLUIDAL","AXONEME","ZONULAR","RECHEAT","SUGHING","FACIEND","KNIGHTS","PIOLETS","NONUSES","NIGHING","BURNETS","INTONED","FLEXILE","SICCING","MIDRIFF","ZOARIAL","RUDDERS","RUSTILY","DAPPING","FILCHER","SECONDE","INKWELL","COAXING","HENTING","WASHDAY","NEMATIC","LUNKERS","FLYPAST","GLITTER","LOBBIES","RIVAGES","TRICKED","LIGURES","TOUCHES","VISCERA","RATTING","MALLING","STENCIL","NERVILY","OVERSET","PRODUCT","FATLING","MORROWS","DEBEAKS","CASSABA","TRIPLEX","CHORTLE","CRYBABY","STRIATA","TISSUAL","WITHIER","APPEARS","GALOPED","WHEREBY","SHAKIER","BEROBED","TOMBING","UNTRIMS","RESTAGE","SNICKER","SABRING","FLUBBED","SHEAFED","FINANCE","CLAVIER","POMPOUS","PELTING","SUDDENS","DISMALS","RADIANS","UNLEVEL","TALKIER","NONLIFE","ELOIGNS","MALTHAS","POSADAS","SCOOTED","QUEERED","SPLASHY","LIGHTER","BAWBEES","LASHING","HENRIES","GASPING","SUCROSE","GREENIE","EMEUTES","FETTING","PEPSINE","PINESAP","NOOSERS","BETHUMP","WORKERS","TRACKED","LINGIER","BLUNTLY","JEMMIES","CHOKERS","CAUDATE","CALLANS","CANALED","LASSIES","SITCOMS","UVEITIS","CRAWDAD","TACKLES","SYMBOLS","CEREALS","SCARLET","DITHIOL","SURPLUS","SETTEES","TAKEOUT","ANGUISH","RIPPLES","GATEAUS","GOURDES","CISSIES","UNDRUNK","MISSELS","AFFABLY","JUGGLED","HEJIRAS","GOBBLER","LUNGERS","COULOMB","ROSTRUM","COTTONS","COULTER","SOCKEYE","ENCORES","MONIKER","FORERAN","FURTIVE","CONFERS","KOUSSOS","GULCHES","REQUITE","SYMBION","FEARERS","BEMOCKS","GLENOID","CUVETTE","HERDMAN","SULKERS","MOLLUSK","EMETINE","STEWPAN","UNBONED","MINNOWS","RIGIDLY","TEXTUAL","UPROOTS","CLOSEUP","PUNNETS","TANNERS","NIDATED","SPARELY","ENOUGHS","MYOSOTE","BRITTLY","BUTTONY","MEATIER","CLASSON","PUTLOGS","SEITANS","GATEWAY","OUTGUNS","DEFTEST","CHISELS","JUSTLED","PTISANS","TALUKAS","RELUCTS","CHAMFER","MISFITS","DYNAMOS","WHOLISM","TWEAKED","SUBTEND","TAFFIES","NUBUCKS","GALLEYS","UMBONAL","GAMINGS","LISPERS","PEACHED","LANCING","PINWORK","PUPPETS","LATICES","TONSILS","LINEAGE","PAIRING","GLOBINS","DUETTED","GRIGRIS","CLOSURE","PAPHIAN","SPRANGS","CAVEMAN","EDIFIES","RETAKES","AMASSES","QUARREL","UNLADED","AEROSOL","DENNING","SAILING","CULVERT","HOTRODS","WHOMPED","TRAWLEY","LOCKERS","AVOIDED","DIRDUMS","CONCEPT","TUCHUNS","DHOORAS","HYMNALS","THEATRE","ANTIGUN","CURVIER","RENTING","CROCKED","BARHOPS","UROPODS","SQUIRTS","BIOLOGY","ISOPODS","PAPISMS","AWARDED","WENNIER","REDNECK","SAMEKHS","CURVETS","LINKAGE","FUBBING","SAGGARD","QUOTING","CURCHES","UPSIDES","FLIRTED","WEBLOGS","RETIMED","TERTIAN","UNALIKE","MUSSILY","RAGGIES","TRASHES","CINEMAS","MISSING","MISCALL","REPUGNS","ALLOVER","SUCKERS","ARMSFUL","HABITUE","TREPANG","OUTGRIN","DIURONS","SIMIANS","DIALOGS","PODGIER","ANCONES","UNGULAR","LOBBING","PELOTON","SANDLOT","ARRACKS","FOILING","HUTTING","WARTIME","PEACOAT","QUAILED","ALKYLIC","VOLCANO","PYROSIS","BURDIES","TIPCATS","HEAVIES","FLEYING","NETIZEN","MANTLES","ENTICES","BLATTED","JOGGING","BEGLOOM","EUCHRES","VOLUMED","IMAGISM","CLOSERS","LIGULAR","MININGS","ARTICLE","BLURTER","VESTING","EXCUSES","POLYOMA","BULLETS","BISTERS","HIRSLES","ADDLING","TARSIER","IONONES","ANSATED","ZESTIER","RICRACS","SENHORA","STRATUS","LEPORID","ALLAYER","RAVINGS","JAGLESS","SMEDDUM","ANCHOVY","POWWOWS","TRAMELS","CONCHIE","STYLETS","CAPELET","OUTRANG","BAYARDS","MUDDILY","BUGGERS","KVELLED","STERNAL","WIDOWER","SOCIALS","TELSONS","KOMATIK","PEOPLES","DENGUES","BUTENES","GUSHERS","TAXICAB","REGLUES","RETINOL","PURFLES","BURIERS","NIBLIKE","FEATHER","VALIDLY","MASJIDS","LACTARY","PLOWMEN","BACKSAW","QUAERES","FEELERS","PENNINE","OVERMAN","BASILIC","GULDENS","GORMING","SKILFUL","BOBTAIL","IODATES","TUSSAHS","CELLARS","TOURACO","WAMEFUL","STAIDER","INDIGEN","COOLIES","DEFFEST","ABSURDS","SPECIES","LAMPOON","LUMPILY","CHOMPED","DONNISH","COARSER","LISTENS","WRESTER","PEAFOWL","SUDSIER","OUTPOLL","ORATORS","ODDNESS","OODLINS","SRADHAS","LOOKIST","FROMAGE","WOLFISH","PICARAS","YUMMIES","BOURSIN","MOTORED","UTTERER","HACKMEN","TILLERS","CROPPER","COCCIDS","AFFICHE","CONNING","SILKIER","SCREENS","WIGEONS","COLLOID","HAPPENS","NERVOUS","IMPACTS","RIFLERS","SONANTS","ENLACES","BEZZANT","LANDING","POLYCOT","CREATOR","SLAYING","TIGHTEN","SPLEENS","TRESSEL","PAYABLE","FORCEPS","SYLVITE","QUAGGAS","CARIOUS","MIDRIBS","CHAMISA","GASPERS","ECDYSES","FLOODER","LEAPERS","AMMETER","SICKBED","FLOCCUS","FLUXING","NERDIER","WETTISH","DOUCEUR","RATTLED","DOORMAN","RIDLEYS","MISTERM","CAESIUM","ZODIACS","SEEDMAN","MAYINGS","PULLMAN","GALLETA","CONGEED","HEADMAN","HOPHEAD","LARDING","CRAPPIE","TILLING","BUGSHAS","HYOIDAL","ZAPPIER","GLACEED","GAZELLE","APLOMBS","GELCAPS","ROTTERS","TASTING","AERATED","POUNCED","DAREFUL","TROKING","LOURING","VIVARIA","RENNETS","LABORER","BUCKETS","PANDORA","BESMEAR","LEGATOS","KAHUNAS","FERRUMS","WEBFEET","OURSELF","CARAMBA","RODLESS","INSTEAD","ORBIEST","SPACIER","TOUCHED","COINAGE","BEEFING","RHOMBIC","REKEYED","LURKING","CITHERS","GUESSED","ZYMOSES","PUFFINS","MERGING","CAVETTO","GIRSHES","BOURBON","BERTHED","NESTING","GRIMMER","CAJOLER","TRACERY","NIMBLER","PROFILE","PROLONG","CLINGER","HURRIER","LOWNESS","DROUTHS","MAULING","EQUINES","RHIZOID","JAGUARS","INVOKED","GUTSIER","FEUDARY","APHIDES","FERULED","GRILSES","POLYENE","SHAMING","TESTOON","ASTILBE","PREMADE","PALUDAL","UNROBED","MIDDIES","RENDING","PUNGENT","OLEFINE","SLUICED","MENACER","TUFTERS","PRETZEL","RERAISE","EGGHEAD","TWIRLED","BLISSED","CAUSERS","HEXYLIC","GIBLETS","DENTING","BURNERS","SURFACE","VIRTUAL","TWIDDLY","TURNOFF","FANLIKE","CODABLE","RENVOIS","SHEUCHS","WARKING","SPANKED","GIFTEES","KARATES","COPPING","SUBPLOT","HEFTERS","PALOOKA","SHAIRNS","HAHNIUM","AUSTERE","ENOUNCE","DICTION","VOLOSTS","YONKERS","CACHING","INJURED","CONCUSS","GIGGLER","RIPOSTE","KABALAS","ZIPPERS","DENDRON","SEQUENT","URAEMIA","SHELVER","STOREYS","INANELY","PALATES","BEDSITS","UNADDED","SHERBET","WINKING","BIASING","HALVAHS","SCARTED","SELFISH","EYEBOLT","LEAVERS","SHRIKES","ANIMATE","HOOPOOS","REWAKES","AMENDER","ANNOYED","RASBORA","PHONILY","REEFING","NEOLITH","CURFEWS","ARISTOS","ASSURES","ESPARTO","BAGGILY","EARMUFF","NITROUS","FURLING","ISOTONE","KEGLING","UNEARTH","PINITOL","STAMMEL","PROXIES","DISKING","OROLOGY","JELLABA","HONKING","BENTHIC","CULLING","BEANING","LAWLIKE","JINKING","MAREMMA","GODDING","APRAXIA","BUCKISH","BLOOPED","SUBHEAD","GRAVURE","MARQUES","PLIABLY","INDULGE","BLAZERS","GLISTEN","DEBATES","PATENTS","NAPKINS","CRADLES","ROUGHLY","EPIGEAL","TINGLED","COWLICK","PRESAGE","SCALARE","PERUKES","SPOTTER","PRECURE","SAMBALS","CHAMISE","RAFFIAS","OUTSPED","ARGUSES","HALTERE","NOISIER","GALOOTS","INCASES","CLEANER","UNCOMIC","CONCERT","CARINAL","GUARDED","WALKING","LOVEBUG","ENTERAL","SHAITAN","DULCIFY","NOTATED","BUTCHER","UNLIVES","TENURES","CAPRICE","HEARKEN","GAITERS","UNWISER","SESAMES","OVARIAL","SLOWISH","IMPENDS","RECIPES","EVANGEL","CHITONS","MAGNETO","PESTERS","UREDIAL","FANNIES","SOLIDLY","GIGOLOS","CHINOOK","GALLOOT","SHRILLS","CORNETS","DAUPHIN","DANCERS","OVERARM","SNACKED","SEMEMES","WAGGLES","REACHES","FOSSILS","DRAYING","LANDMEN","DIESTER","DEFENSE","HORDEIN","MOUCHES","HAMADAS","TOUPEES","TOXICAL","CHIMLAS","GLIMMER","CAPERER","ISOLEAD","WIDGETS","ANGELED","ZOOTIER","ZLOTYCH","INTAKES","TURPETH","DUMMIED","FLIGHTY","FRESHED","CIVISMS","SOPITES","DOCKAGE","BIPACKS","LADINOS","CARCASS","RIVETER","ENDEMIC","GANACHE","PREPAID","GNOCCHI","BOGYISM","TRACING","UNFADED","GROVELS","EIDOLON","RUSTLER","WINCING","AERUGOS","CORYZAL","KINGDOM","PREMEDS","BARKIER","CARVING","ZEPHYRS","DEFUZES","INCIVIL","SAPONIN","SHAPELY","CHALEHS","BIZARRO","DUNKERS","MISRATE","CHEVIOT","SHAMPOO"];
+
+        // Shuffle array helper
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        // Word pools for each action
+        let wordPools = {
+            rotateLeft: [],
+            rotateRight: [],
+            moveLeft: [],
+            moveRight: [],
+            moveDown: [],
+            hardDrop: [],
+            hold: []
         };
+
+        // Initialize word pools from fixed list
+        function initializeWords() {
+            const shuffled = shuffleArray(allWords);
+            const wordsPerAction = Math.floor(shuffled.length / 7);
+            
+            const actions = Object.keys(wordPools);
+            actions.forEach((action, i) => {
+                const start = i * wordsPerAction;
+                const end = start + wordsPerAction;
+                wordPools[action] = shuffled.slice(start, end);
+            });
+        }
 
         // Game state
         let board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
@@ -272,6 +308,13 @@
         let clearingLines = [];
         let clearAnimationFrame = 0;
         let highScore = parseInt(localStorage.getItem('wordTetrisHighScore') || '0');
+        let heldPiece = null;
+        let canHold = true;
+        let onGround = false;
+        let groundTicks = 0;
+        let charCount = 0;
+        let gameStartTime = null;
+        let transitionCells = []; // Array of {x, y, targetColor, startTime, duration}
 
         // Current words for each action
         let currentWords = {
@@ -280,7 +323,8 @@
             moveLeft: 'LEFTIST',
             moveRight: 'RIGHTLY',
             moveDown: 'DESCEND',
-            hardDrop: 'PLUNGER'
+            hardDrop: 'PLUNGER',
+            hold: 'STORAGE'
         };
 
         // Tetromino shapes
@@ -312,6 +356,7 @@
                 this.color = COLORS[this.type];
                 this.x = Math.floor(COLS / 2) - Math.floor(this.shape[0].length / 2);
                 this.y = 0;
+                this.rotationCount = 0;
             }
 
             rotate(clockwise = true) {
@@ -333,12 +378,23 @@
                 }
                 
                 const oldShape = this.shape;
+                const oldX = this.x;
                 this.shape = newShape;
                 
+                // Wall kick
                 if (this.collides()) {
-                    this.shape = oldShape;
-                    return false;
+                    this.x = oldX - 1;
+                    if (this.collides()) {
+                        this.x = oldX + 1;
+                        if (this.collides()) {
+                            this.x = oldX;
+                            this.shape = oldShape;
+                            return false;
+                        }
+                    }
                 }
+                
+                this.rotationCount++;
                 return true;
             }
 
@@ -374,6 +430,38 @@
                 return false;
             }
 
+            isOnGround() {
+                for (let y = 0; y < this.shape.length; y++) {
+                    for (let x = 0; x < this.shape[y].length; x++) {
+                        if (this.shape[y][x]) {
+                            const newX = this.x + x;
+                            const newY = this.y + y + 1;
+                            
+                            if (newY >= ROWS) {
+                                return true;
+                            }
+                            
+                            if (newY >= 0 && board[newY][newX]) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            getDropDistance() {
+                let distance = 0;
+                while (true) {
+                    this.y++;
+                    distance++;
+                    if (this.collides()) {
+                        this.y -= distance;
+                        return distance - 1;
+                    }
+                }
+            }
+
             lock() {
                 for (let y = 0; y < this.shape.length; y++) {
                     for (let x = 0; x < this.shape[y].length; x++) {
@@ -381,12 +469,39 @@
                             const boardY = this.y + y;
                             const boardX = this.x + x;
                             if (boardY >= 0) {
-                                board[boardY][boardX] = this.color;
+                                // Add transition animation
+                                transitionCells.push({
+                                    x: boardX,
+                                    y: boardY,
+                                    targetColor: this.color,
+                                    startTime: Date.now(),
+                                    duration: 100
+                                });
                             }
                         }
                     }
                 }
             }
+        }
+
+        function holdPiece() {
+            if (!canHold) return;
+            
+            if (heldPiece === null) {
+                heldPiece = currentPiece.type;
+                currentPiece = new Piece();
+            } else {
+                const temp = heldPiece;
+                heldPiece = currentPiece.type;
+                currentPiece = new Piece();
+                currentPiece.type = temp;
+                currentPiece.shape = PIECES[temp];
+                currentPiece.color = COLORS[temp];
+            }
+            
+            canHold = false;
+            onGround = false;
+            groundTicks = 0;
         }
 
         function getRandomWord(pool, exclude) {
@@ -436,26 +551,70 @@
             if (inputBuffer.length < 7) return;
             
             const last7 = inputBuffer.slice(-7).toUpperCase();
+            let actionTaken = false;
+            let bonusPoints = 0;
             
             if (last7 === currentWords.rotateLeft) {
-                currentPiece.rotate(false);
-                updateWord('rotateLeft');
+                const rotated = currentPiece.rotate(false);
+                if (rotated) {
+                    updateWord('rotateLeft');
+                    actionTaken = true;
+                    // Check for T-spin potential
+                    if (currentPiece.type === 'T' && currentPiece.isOnGround()) {
+                        bonusPoints = 100 * level;
+                    }
+                }
             } else if (last7 === currentWords.rotateRight) {
-                currentPiece.rotate(true);
-                updateWord('rotateRight');
+                const rotated = currentPiece.rotate(true);
+                if (rotated) {
+                    updateWord('rotateRight');
+                    actionTaken = true;
+                    // Check for T-spin potential
+                    if (currentPiece.type === 'T' && currentPiece.isOnGround()) {
+                        bonusPoints = 100 * level;
+                    }
+                }
             } else if (last7 === currentWords.moveLeft) {
-                currentPiece.move(-1, 0);
-                updateWord('moveLeft');
+                if (currentPiece.move(-1, 0)) {
+                    updateWord('moveLeft');
+                    actionTaken = true;
+                }
             } else if (last7 === currentWords.moveRight) {
-                currentPiece.move(1, 0);
-                updateWord('moveRight');
+                if (currentPiece.move(1, 0)) {
+                    updateWord('moveRight');
+                    actionTaken = true;
+                }
             } else if (last7 === currentWords.moveDown) {
-                currentPiece.move(0, 1);
-                updateWord('moveDown');
+                if (currentPiece.move(0, 1)) {
+                    updateWord('moveDown');
+                    actionTaken = true;
+                    score += 1;
+                }
             } else if (last7 === currentWords.hardDrop) {
+                const dropDistance = currentPiece.getDropDistance();
                 while (currentPiece.move(0, 1)) {}
+                bonusPoints = dropDistance * 2 * level;
                 lockPiece();
                 updateWord('hardDrop');
+                actionTaken = true;
+            } else if (last7 === currentWords.hold) {
+                holdPiece();
+                updateWord('hold');
+                actionTaken = true;
+            }
+            
+            if (actionTaken) {
+                // Reset ground counter if piece moved off ground
+                if (!currentPiece.isOnGround()) {
+                    onGround = false;
+                    groundTicks = 0;
+                }
+                
+                // Add bonus points
+                if (bonusPoints > 0) {
+                    score += bonusPoints;
+                    document.getElementById('score').textContent = score;
+                }
             }
         }
 
@@ -463,9 +622,15 @@
             currentPiece.lock();
             clearLines();
             currentPiece = new Piece();
+            canHold = true;
+            onGround = false;
+            groundTicks = 0;
             
             if (currentPiece.collides()) {
                 gameOver = true;
+                const gameTime = (Date.now() - gameStartTime) / 1000;
+                const cps = (charCount / gameTime).toFixed(1);
+                document.getElementById('cps').textContent = cps;
                 document.getElementById('gameOver').classList.add('show');
                 document.getElementById('finalScore').textContent = score;
             }
@@ -528,24 +693,53 @@
             ctx.fillStyle = getComputedStyle(document.body).backgroundColor;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
+            const now = Date.now();
+            
+            // Process transition cells and update board
+            transitionCells = transitionCells.filter(cell => {
+                const elapsed = now - cell.startTime;
+                if (elapsed >= cell.duration) {
+                    board[cell.y][cell.x] = cell.targetColor;
+                    return false;
+                }
+                return true;
+            });
+            
             // Draw board with retro scanline effect
             for (let y = 0; y < ROWS; y++) {
                 for (let x = 0; x < COLS; x++) {
-                    if (board[y][x]) {
+                    let cellColor = board[y][x];
+                    let isTransitioning = false;
+                    let transitionAlpha = 1;
+                    
+                    // Check if this cell is transitioning
+                    const transition = transitionCells.find(t => t.x === x && t.y === y);
+                    if (transition) {
+                        const elapsed = now - transition.startTime;
+                        const progress = elapsed / transition.duration;
+                        transitionAlpha = progress;
+                        cellColor = transition.targetColor;
+                        isTransitioning = true;
+                    }
+                    
+                    if (cellColor) {
                         // Check if this line is being cleared
                         let alpha = 1;
                         if (clearingLines.includes(y)) {
                             alpha = Math.abs(Math.sin(clearAnimationFrame * 0.8)) * 0.8;
                         }
                         
+                        if (isTransitioning) {
+                            alpha *= transitionAlpha;
+                        }
+                        
                         ctx.globalAlpha = alpha;
-                        ctx.fillStyle = board[y][x];
+                        ctx.fillStyle = cellColor;
                         ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1);
                         
-                        // Retro scanline effect - lighter at top
+                        // Retro scanline effect
                         ctx.globalAlpha = alpha * 0.15;
                         ctx.fillStyle = 'white';
-                        const scanlineOffset = (y * BLOCK_SIZE + (Date.now() / 50) % BLOCK_SIZE);
                         for (let scan = 0; scan < BLOCK_SIZE; scan += 2) {
                             ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE + scan, BLOCK_SIZE - 1, 1);
                         }
@@ -584,6 +778,27 @@
                     }
                 }
             }
+            
+            // Draw held piece in top-left corner
+            if (heldPiece) {
+                const heldShape = PIECES[heldPiece];
+                const heldColor = COLORS[heldPiece];
+                ctx.globalAlpha = 0.6;
+                ctx.fillStyle = heldColor;
+                for (let y = 0; y < heldShape.length; y++) {
+                    for (let x = 0; x < heldShape[y].length; x++) {
+                        if (heldShape[y][x]) {
+                            ctx.fillRect(
+                                x * 15 + 10,
+                                y * 15 + 10,
+                                14,
+                                14
+                            );
+                        }
+                    }
+                }
+                ctx.globalAlpha = 1;
+            }
         }
 
         function update(time = 0) {
@@ -592,13 +807,40 @@
             const deltaTime = time - lastTime;
             lastTime = time;
             
+            // Update CPS display
+            if (gameStartTime) {
+                const gameTime = (Date.now() - gameStartTime) / 1000;
+                const cps = gameTime > 0 ? (charCount / gameTime).toFixed(1) : '0.0';
+                document.getElementById('cps').textContent = cps;
+            }
+            
             // Don't update game logic during line clear animation
             if (clearingLines.length === 0) {
                 dropCounter += deltaTime;
                 
-                if (dropCounter > dropInterval) {
-                    if (!currentPiece.move(0, 1)) {
+                // Check if piece is on ground
+                if (currentPiece.isOnGround()) {
+                    if (!onGround) {
+                        onGround = true;
+                        groundTicks = 0;
+                    }
+                    groundTicks += deltaTime;
+                    
+                    // Lock after ~0.5 seconds on ground
+                    if (groundTicks > 500) {
                         lockPiece();
+                        dropCounter = 0;
+                    }
+                } else {
+                    onGround = false;
+                    groundTicks = 0;
+                }
+                
+                if (dropCounter > dropInterval && !onGround) {
+                    if (!currentPiece.move(0, 1)) {
+                        // Just touched ground, start counter
+                        onGround = true;
+                        groundTicks = 0;
                     }
                     dropCounter = 0;
                 }
@@ -608,7 +850,7 @@
             requestAnimationFrame(update);
         }
 
-        function resetGame() {
+        async function resetGame() {
             board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
             score = 0;
             lines = 0;
@@ -620,13 +862,24 @@
             currentPiece = new Piece();
             clearingLines = [];
             clearAnimationFrame = 0;
+            heldPiece = null;
+            canHold = true;
+            onGround = false;
+            groundTicks = 0;
+            charCount = 0;
+            gameStartTime = Date.now();
+            transitionCells = [];
             
             document.getElementById('score').textContent = score;
             document.getElementById('lines').textContent = lines;
             document.getElementById('level').textContent = level;
             document.getElementById('highScore').textContent = highScore;
+            document.getElementById('cps').textContent = '0.0';
             document.getElementById('gameOver').classList.remove('show');
             document.getElementById('inputDisplay').textContent = '';
+            
+            // Initialize new word pools
+            initializeWords();
             
             // Initialize all control words with letter spans
             for (const action in currentWords) {
@@ -647,6 +900,12 @@
             if (gameOver) return;
             
             if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
+                // Start game timer on first keypress
+                if (!gameStartTime) {
+                    gameStartTime = Date.now();
+                }
+                
+                charCount++;
                 inputBuffer += e.key.toUpperCase();
                 
                 // Keep only last 10 characters for display
@@ -661,19 +920,24 @@
         });
 
         // Initialize game
-        document.getElementById('highScore').textContent = highScore;
-        
-        // Initialize all control words with letter spans
-        for (const action in currentWords) {
-            const word = currentWords[action];
-            const wordElement = document.getElementById(action + 'Word');
-            wordElement.innerHTML = word.split('').map(letter => 
-                `<span class="letter unmatched">${letter}</span>`
-            ).join('');
-        }
-        
-        currentPiece = new Piece();
-        update();
+        (async function init() {
+            document.getElementById('highScore').textContent = highScore;
+            
+            // Initialize word pools
+            initializeWords();
+            
+            // Initialize all control words with letter spans
+            for (const action in currentWords) {
+                const word = currentWords[action];
+                const wordElement = document.getElementById(action + 'Word');
+                wordElement.innerHTML = word.split('').map(letter => 
+                    `<span class="letter unmatched">${letter}</span>`
+                ).join('');
+            }
+            
+            currentPiece = new Piece();
+            update();
+        })();
     </script>
 </body>
 </html>
