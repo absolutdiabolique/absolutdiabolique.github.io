@@ -161,6 +161,131 @@
             color: black;
         }
 
+        .pause-menu {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 40px;
+            border: 3px solid currentColor;
+            background-color: rgba(0, 0, 0, 0.95);
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .pause-menu.show {
+            display: flex;
+        }
+
+        .pause-menu .button {
+            min-width: 150px;
+        }
+
+        .start-screen {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 50px;
+            border: 3px solid currentColor;
+            background-color: rgba(0, 0, 0, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            z-index: 100;
+        }
+
+        .start-screen.hidden {
+            display: none;
+        }
+
+        .start-screen h1 {
+            font-size: 36px;
+            margin: 0;
+        }
+
+        .history-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 300px;
+            max-width: 350px;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 2px solid currentColor;
+            font-weight: bold;
+        }
+
+        .sort-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .sort-button {
+            padding: 4px 8px;
+            border: 1px solid currentColor;
+            background: transparent;
+            color: currentColor;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .sort-button:hover, .sort-button.active {
+            background: currentColor;
+            color: black;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 5px;
+            border: 1px solid currentColor;
+        }
+
+        .history-item {
+            padding: 8px;
+            border: 1px solid currentColor;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .history-item-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .pause-button {
+            padding: 8px 16px;
+            border: 2px solid currentColor;
+            background: transparent;
+            color: currentColor;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .pause-button:hover {
+            background: currentColor;
+            color: black;
+        }
+
         .help {
             font-size: 12px;
             opacity: 0.7;
@@ -183,7 +308,10 @@
         <div class="game-area">
             <canvas id="tetris" width="300" height="600"></canvas>
             <div class="input-display" id="inputDisplay"></div>
-            <button class="button" onclick="changeTheme()">Change Theme</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="pause-button" id="pauseButton" onclick="togglePause()">Pause</button>
+                <button class="button" onclick="changeTheme()">Change Theme</button>
+            </div>
             <div class="help">Type 7-letter words to control the pieces. Words change after each use!</div>
         </div>
         
@@ -240,6 +368,33 @@
                 <span class="control-word" id="holdWord">STORAGE</span>
             </div>
         </div>
+
+        <div class="history-panel">
+            <div class="history-header">
+                <span>Game History</span>
+            </div>
+            <div class="sort-buttons">
+                <button class="sort-button active" onclick="sortHistory('time')">Time</button>
+                <button class="sort-button" onclick="sortHistory('score')">Score</button>
+                <button class="sort-button" onclick="sortHistory('lines')">Lines</button>
+                <button class="sort-button" onclick="sortHistory('blocks')">Blocks</button>
+            </div>
+            <div class="history-list" id="historyList">
+                <div style="opacity: 0.5; text-align: center; padding: 20px;">No games yet</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="start-screen" id="startScreen">
+        <h1>WORD TETRIS</h1>
+        <p>Type 7-letter words to control the pieces</p>
+        <button class="button" onclick="startGame()">Start Game</button>
+    </div>
+
+    <div class="pause-menu" id="pauseMenu">
+        <button class="button" onclick="resumeGame()">Resume</button>
+        <button class="button" onclick="restartGame()">Restart</button>
+        <button class="button" onclick="endGame()">End Game</button>
     </div>
 
     <div class="game-over" id="gameOver">
@@ -315,6 +470,11 @@
         let charCount = 0;
         let gameStartTime = null;
         let transitionCells = []; // Array of {x, y, targetColor, startTime, duration}
+        let isPaused = false;
+        let isGameStarted = false;
+        let blocksPlaced = 0;
+        let gameHistory = JSON.parse(localStorage.getItem('wordTetrisHistory') || '[]');
+        let currentSortBy = 'time';
 
         // Current words for each action
         let currentWords = {
@@ -504,6 +664,152 @@
             groundTicks = 0;
         }
 
+        function saveGameToHistory() {
+            const game = {
+                timestamp: Date.now(),
+                date: new Date().toLocaleString(),
+                score: score,
+                lines: lines,
+                blocks: blocksPlaced,
+                cps: document.getElementById('cps').textContent
+            };
+            
+            gameHistory.unshift(game);
+            
+            // Keep only last 50 games
+            if (gameHistory.length > 50) {
+                gameHistory = gameHistory.slice(0, 50);
+            }
+            
+            localStorage.setItem('wordTetrisHistory', JSON.stringify(gameHistory));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const historyList = document.getElementById('historyList');
+            
+            if (gameHistory.length === 0) {
+                historyList.innerHTML = '<div style="opacity: 0.5; text-align: center; padding: 20px;">No games yet</div>';
+                return;
+            }
+            
+            historyList.innerHTML = gameHistory.map((game, index) => `
+                <div class="history-item">
+                    <div class="history-item-row">
+                        <strong>#${index + 1}</strong>
+                        <span>${game.date}</span>
+                    </div>
+                    <div class="history-item-row">
+                        <span>Score: ${game.score}</span>
+                        <span>Lines: ${game.lines}</span>
+                    </div>
+                    <div class="history-item-row">
+                        <span>Blocks: ${game.blocks}</span>
+                        <span>CPS: ${game.cps}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function sortHistory(sortBy) {
+            currentSortBy = sortBy;
+            
+            // Update active button
+            document.querySelectorAll('.sort-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Sort the history
+            const sorted = [...gameHistory];
+            switch(sortBy) {
+                case 'time':
+                    sorted.sort((a, b) => b.timestamp - a.timestamp);
+                    break;
+                case 'score':
+                    sorted.sort((a, b) => b.score - a.score);
+                    break;
+                case 'lines':
+                    sorted.sort((a, b) => b.lines - a.lines);
+                    break;
+                case 'blocks':
+                    sorted.sort((a, b) => b.blocks - a.blocks);
+                    break;
+            }
+            
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = sorted.map((game, index) => `
+                <div class="history-item">
+                    <div class="history-item-row">
+                        <strong>#${index + 1}</strong>
+                        <span>${game.date}</span>
+                    </div>
+                    <div class="history-item-row">
+                        <span>Score: ${game.score}</span>
+                        <span>Lines: ${game.lines}</span>
+                    </div>
+                    <div class="history-item-row">
+                        <span>Blocks: ${game.blocks}</span>
+                        <span>CPS: ${game.cps}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function togglePause() {
+            if (!isGameStarted || gameOver) return;
+            
+            isPaused = !isPaused;
+            
+            if (isPaused) {
+                document.getElementById('pauseMenu').classList.add('show');
+            } else {
+                document.getElementById('pauseMenu').classList.remove('show');
+            }
+        }
+
+        function resumeGame() {
+            isPaused = false;
+            document.getElementById('pauseMenu').classList.remove('show');
+            lastTime = performance.now();
+            requestAnimationFrame(update);
+        }
+
+        function restartGame() {
+            // Save current game if it has progress
+            if (blocksPlaced > 0) {
+                saveGameToHistory();
+            }
+            
+            isPaused = false;
+            document.getElementById('pauseMenu').classList.remove('show');
+            resetGame();
+        }
+
+        function endGame() {
+            // Save current game if it has progress
+            if (blocksPlaced > 0) {
+                saveGameToHistory();
+            }
+            
+            isPaused = false;
+            isGameStarted = false;
+            gameOver = false;
+            document.getElementById('pauseMenu').classList.remove('show');
+            document.getElementById('startScreen').classList.remove('hidden');
+            
+            // Clear board
+            board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+            currentPiece = null;
+            draw();
+        }
+
+        function startGame() {
+            document.getElementById('startScreen').classList.add('hidden');
+            isGameStarted = true;
+            resetGame();
+        }
+
         function getRandomWord(pool, exclude) {
             const available = pool.filter(word => word !== exclude);
             return available[Math.floor(Math.random() * available.length)];
@@ -620,6 +926,7 @@
 
         function lockPiece() {
             currentPiece.lock();
+            blocksPlaced++;
             clearLines();
             currentPiece = new Piece();
             canHold = true;
@@ -631,6 +938,10 @@
                 const gameTime = (Date.now() - gameStartTime) / 1000;
                 const cps = (charCount / gameTime).toFixed(1);
                 document.getElementById('cps').textContent = cps;
+                
+                // Save game to history
+                saveGameToHistory();
+                
                 document.getElementById('gameOver').classList.add('show');
                 document.getElementById('finalScore').textContent = score;
             }
@@ -802,7 +1113,9 @@
         }
 
         function update(time = 0) {
-            if (gameOver) return;
+            if (gameOver || !isGameStarted) return;
+            
+            if (isPaused) return;
             
             const deltaTime = time - lastTime;
             lastTime = time;
@@ -869,6 +1182,8 @@
             charCount = 0;
             gameStartTime = Date.now();
             transitionCells = [];
+            blocksPlaced = 0;
+            isPaused = false;
             
             document.getElementById('score').textContent = score;
             document.getElementById('lines').textContent = lines;
@@ -886,6 +1201,7 @@
                 updateWord(action);
             }
             
+            lastTime = performance.now();
             update();
         }
 
@@ -897,7 +1213,7 @@
 
         // Input handling
         document.addEventListener('keydown', (e) => {
-            if (gameOver) return;
+            if (!isGameStarted || isPaused || gameOver) return;
             
             if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
                 // Start game timer on first keypress
@@ -935,8 +1251,10 @@
                 ).join('');
             }
             
-            currentPiece = new Piece();
-            update();
+            // Render game history
+            renderHistory();
+            
+            // Don't create piece or start update loop until game starts
         })();
     </script>
 </body>
