@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wave Practice</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Rajdhani:wght@600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: #0a0a0f;
+            overflow: hidden;
+            color: #fff;
+            display: flex;
+        }
+        
+        #gameContainer {
+            width: 70%;
+            height: 100vh;
+            position: relative;
+        }
+        
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #0f0a1a 0%, #1a0f2e 50%, #0f0a1a 100%);
+            box-shadow: inset 0 0 100px rgba(138, 43, 226, 0.3);
+        }
+        
+        #optionsPanel {
+            width: 30%;
+            height: 100vh;
+            background: #0f0a1a;
+            padding: 30px;
+            overflow-y: auto;
+            border-left: 2px solid #8a2be2;
+            box-shadow: -10px 0 30px rgba(138, 43, 226, 0.3);
+        }
+        
+        #optionsPanel h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
+            margin-bottom: 30px;
+            color: #ff00ff;
+            text-shadow: 0 0 10px #ff00ff;
+            letter-spacing: 2px;
+        }
+        
+        .option-group {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(138, 43, 226, 0.1);
+            border: 1px solid rgba(138, 43, 226, 0.3);
+            border-radius: 10px;
+        }
+        
+        .option-group label {
+            display: block;
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #00ffff;
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+        }
+        
+        .option-group input[type="number"],
+        .option-group select {
+            width: 100%;
+            padding: 10px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #8a2be2;
+            border-radius: 5px;
+            color: #fff;
+            margin-top: 5px;
+        }
+        
+        .option-group input[type="range"] {
+            width: 100%;
+            margin-top: 10px;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            background: rgba(138, 43, 226, 0.3);
+            border-radius: 5px;
+            outline: none;
+        }
+        
+        .option-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #8a2be2;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.8);
+        }
+        
+        .option-group input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #8a2be2;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.8);
+        }
+        
+        .option-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 18px;
+            color: #00ffff;
+        }
+        
+        .speed-presets {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .speed-btn {
+            flex: 1;
+            padding: 8px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            background: rgba(138, 43, 226, 0.3);
+            border: 1px solid #8a2be2;
+            border-radius: 5px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .speed-btn:hover {
+            background: rgba(138, 43, 226, 0.5);
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.5);
+        }
+        
+        .speed-btn.active {
+            background: #8a2be2;
+            box-shadow: 0 0 15px rgba(138, 43, 226, 0.8);
+        }
+        
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        #score {
+            position: absolute;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: 600;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+        }
+        
+        #startScreen, #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(10, 10, 15, 0.9);
+            backdrop-filter: blur(10px);
+            pointer-events: all;
+        }
+        
+        #startScreen h2, #gameOverScreen h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 36px;
+            margin-bottom: 30px;
+            color: #ff00ff;
+            text-shadow: 0 0 20px #ff00ff;
+        }
+        
+        .instruction {
+            font-size: 20px;
+            margin: 10px 0;
+            color: #00ffff;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+        
+        button {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            font-weight: 900;
+            color: #fff;
+            background: linear-gradient(45deg, #ff00ff, #8a2be2);
+            border: 2px solid #ff00ff;
+            border-radius: 50px;
+            cursor: pointer;
+            pointer-events: all;
+            transition: all 0.3s ease;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+            box-shadow: 
+                0 0 20px rgba(255, 0, 255, 0.6),
+                0 0 40px rgba(138, 43, 226, 0.4),
+                inset 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 
+                0 0 30px rgba(255, 0, 255, 0.8),
+                0 0 60px rgba(138, 43, 226, 0.6),
+                inset 0 0 30px rgba(255, 255, 255, 0.2);
+        }
+        
+        #finalScore {
+            font-size: 48px;
+            margin: 20px 0;
+            color: #00ffff;
+            text-shadow: 0 0 20px #00ffff;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui">
+            <div id="score">Distance: <span id="scoreValue">0</span></div>
+            
+            <div id="startScreen">
+                <h2>Wave Practice</h2>
+                <div class="instruction">Practice your Wave skills.</div>
+                <button id="startBtn">START GAME</button>
+            </div>
+            
+            <div id="gameOverScreen" class="hidden">
+                <h2>Wave Practice</h2>
+                <div id="finalScore">Distance: 0</div>
+                <button id="restartBtn">PLAY AGAIN</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="optionsPanel">
+        <h3>OPTIONS</h3>
+        
+        <div class="option-group">
+            <label>Game Speed</label>
+            <div class="speed-presets">
+                <button class="speed-btn active" data-speed="1">1x</button>
+                <button class="speed-btn" data-speed="2">2x</button>
+                <button class="speed-btn" data-speed="3">3x</button>
+            </div>
+            <label>Custom Speed</label>
+            <input type="number" id="customSpeed" min="0.5" max="10" step="0.5" value="1">
+        </div>
+        
+        <div class="option-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="miniMode">
+                Mini Mode (2x faster ascent/descent)
+            </label>
+        </div>
+        
+        <div class="option-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="showIndicators" checked>
+                Show Turn Indicators
+            </label>
+        </div>
+        
+        <div class="option-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="hideSegments">
+                Hide Segments
+            </label>
+        </div>
+        
+        <div class="option-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="nineCirclesEffect">
+                Segment Indicators (Pulsing Lights)
+            </label>
+        </div>
+        
+        <div class="option-group">
+            <label>Tunnel Tightness</label>
+            <input type="range" id="tunnelTightness" min="0.2" max="3" step="0.1" value="1">
+            <div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 14px; color: #8a2be2;">
+                <span>Wide</span>
+                <span id="tightnessValue">1.0x</span>
+                <span>Tight</span>
+            </div>
+        </div>
+        
+        <div class="option-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="showParallax" checked>
+                Show Parallax Layers
+            </label>
+        </div>
+        
+        <div class="option-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="showPlayerTrail" checked>
+                Show Player Trail
+            </label>
+        </div>
+        
+        <div class="option-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="showParticles">
+                Particle Effects
+            </label>
+        </div>
+        
+        <div class="option-group">
+            <label class="checkbox-label">
+                <input type="checkbox" id="chromaShift">
+                Chromatic Aberration
+            </label>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resizeCanvas() {
+            const container = document.getElementById('gameContainer');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        resizeCanvas();
+        
+        let gameRunning = false;
+        let score = 0;
+        let playerY = canvas.height / 2;
+        let playerX = 100;
+        let isAscending = false;
+        let cameraOffsetX = 0;
+        let cameraOffsetY = 0;
+        let trailSegments = [];
+        let currentTrailStartX = 0;
+        let currentTrailStartY = 0;
+        let lastDirection = 0;
+        
+        let basePlayerSpeed = 3;
+        let gameSpeed = 1;
+        let miniMode = false;
+        let showIndicators = true;
+        let hideSegments = false;
+        let nineCirclesEffect = false;
+        let tunnelTightness = 1;
+        let showParallax = true;
+        let showPlayerTrail = true;
+        let showParticles = false;
+        let chromaShift = false;
+        const playerSize = 15;
+        const maxTrailLength = 500;
+        
+        let segments = [];
+        let nextSegmentX = 1300;
+        let lastSegmentDirection = 1;
+        
+        let baseSegmentGap = 120;
+        let segmentGap = 120;
+        const segmentThickness = 3;
+
+        const MIN_SEGMENT_LENGTH = 120;
+        const MAX_SEGMENT_LENGTH = 300;
+        
+        // Parallax layers
+        let parallaxLayers = [];
+        
+        // Particle system
+        let particles = [];
+        
+        function randRange(min, max) {
+            return min + Math.random() * (max - min);
+        }
+        
+        function initParallaxLayers() {
+            parallaxLayers = [];
+            
+            // Create multiple layers with different speeds and styles
+            const layerConfigs = [
+                { count: 30, speed: 0.1, size: [2, 5], color: 'rgba(138, 43, 226, 0.3)', blur: 3 },
+                { count: 20, speed: 0.3, size: [3, 8], color: 'rgba(255, 0, 255, 0.2)', blur: 5 },
+                { count: 15, speed: 0.5, size: [4, 10], color: 'rgba(0, 255, 255, 0.15)', blur: 7 },
+            ];
+            
+            layerConfigs.forEach(config => {
+                for (let i = 0; i < config.count; i++) {
+                    parallaxLayers.push({
+                        x: Math.random() * canvas.width * 3,
+                        y: Math.random() * canvas.height,
+                        size: randRange(config.size[0], config.size[1]),
+                        speed: config.speed,
+                        color: config.color,
+                        blur: config.blur,
+                        pulse: Math.random() * Math.PI * 2
+                    });
+                }
+            });
+        }
+        
+        function drawParallaxLayers() {
+            if (!showParallax) return;
+            
+            const time = Date.now() / 1000;
+            
+            parallaxLayers.forEach(layer => {
+                const offsetX = cameraOffsetX * layer.speed;
+                const screenX = layer.x - offsetX;
+                
+                // Wrap around
+                let wrappedX = screenX % (canvas.width * 3);
+                if (wrappedX < -100) wrappedX += canvas.width * 3;
+                
+                if (wrappedX > -100 && wrappedX < canvas.width + 100) {
+                    const pulse = Math.sin(time + layer.pulse) * 0.3 + 0.7;
+                    
+                    ctx.shadowBlur = layer.blur;
+                    ctx.shadowColor = layer.color;
+                    ctx.fillStyle = layer.color;
+                    ctx.globalAlpha = pulse * 0.8;
+                    
+                    ctx.beginPath();
+                    ctx.arc(wrappedX, layer.y, layer.size * pulse, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.globalAlpha = 1;
+                    ctx.shadowBlur = 0;
+                }
+            });
+        }
+        
+        function initParticles() {
+            particles = [];
+        }
+        
+        function addParticle(x, y, color) {
+            particles.push({
+                x: x,
+                y: y,
+                vx: randRange(-2, 2),
+                vy: randRange(-2, 2),
+                size: randRange(2, 5),
+                life: 1.0,
+                color: color || '#00ffff'
+            });
+        }
+        
+        function updateParticles() {
+            if (!showParticles) return;
+            
+            // Spawn particles from player
+            if (gameRunning && Math.random() < 0.3) {
+                addParticle(
+                    playerX + cameraOffsetX,
+                    playerY,
+                    `hsl(${Math.random() * 60 + 180}, 100%, 50%)`
+                );
+            }
+            
+            particles = particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                p.vy += 0.1; // Gravity
+                return p.life > 0;
+            });
+        }
+        
+        function drawParticles() {
+            if (!showParticles) return;
+            
+            particles.forEach(p => {
+                const screenX = p.x - cameraOffsetX;
+                const screenY = p.y - cameraOffsetY;
+                
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = p.color;
+                
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, p.size * p.life, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
+            });
+        }
+        
+        function initSegments() {
+            segments = [];
+            nextSegmentX = 1300;
+            lastSegmentDirection = 1;
+            
+            const funnelStartX = 300;
+            const funnelLength = 1000;
+            const funnelEndX = funnelStartX + funnelLength;
+            
+            const upperStartY = canvas.height / 2 - segmentGap / 2 - funnelLength;
+            const upperEndY = canvas.height / 2 - segmentGap / 2;
+            
+            const lowerStartY = canvas.height / 2 + segmentGap / 2 + funnelLength;
+            const lowerEndY = canvas.height / 2 + segmentGap / 2;
+            
+            segments.push({
+                startX: funnelStartX,
+                startY: upperStartY,
+                endX: funnelEndX,
+                endY: upperEndY,
+                upper: true,
+                direction: 1,
+                turnX: funnelEndX,
+                turnY: upperEndY,
+                isFunnel: true
+            });
+            
+            segments.push({
+                startX: funnelStartX,
+                startY: lowerStartY,
+                endX: funnelEndX,
+                endY: lowerEndY,
+                upper: false,
+                direction: -1,
+                turnX: funnelEndX,
+                turnY: lowerEndY,
+                isFunnel: true
+            });
+            
+            for (let i = 0; i < 5; i++) {
+                addSegment();
+            }
+        }
+        
+        function addSegment() {
+            const length = randRange(MIN_SEGMENT_LENGTH, MAX_SEGMENT_LENGTH);
+            const startX = nextSegmentX;
+            const endX = startX + length;
+            
+            const direction = -lastSegmentDirection;
+            lastSegmentDirection = direction;
+            
+            let startY;
+            if (segments.length === 2) {
+                startY = canvas.height / 2;
+            } else {
+                const lastUpperSeg = segments[segments.length - 2];
+                startY = lastUpperSeg.endY + segmentGap / 2;
+            }
+            
+            const endY = startY + length * direction;
+            
+            segments.push({
+                startX,
+                startY: startY - segmentGap / 2,
+                endX,
+                endY: endY - segmentGap / 2,
+                upper: true,
+                direction,
+                turnX: endX,
+                turnY: endY - segmentGap / 2,
+                isFunnel: false
+            });
+            
+            segments.push({
+                startX,
+                startY: startY + segmentGap / 2,
+                endX,
+                endY: endY + segmentGap / 2,
+                upper: false,
+                direction,
+                turnX: endX,
+                turnY: endY + segmentGap / 2,
+                isFunnel: false
+            });
+            
+            nextSegmentX = endX;
+        }
+        
+        function drawNineCirclesEffect() {
+            if (!nineCirclesEffect) return;
+            
+            const time = Date.now() / 1000;
+            const pulseSpeed = 3;
+            const spacing = 80;
+            
+            segments.forEach(segment => {
+                if (segment.isFunnel) return;
+                
+                const screenStartX = segment.startX - cameraOffsetX;
+                const screenEndX = segment.endX - cameraOffsetX;
+                
+                if (screenEndX > -100 && screenStartX < canvas.width + 100) {
+                    const segmentLength = Math.hypot(
+                        segment.endX - segment.startX,
+                        segment.endY - segment.startY
+                    );
+                    
+                    const numLights = Math.ceil(segmentLength / spacing);
+                    
+                    for (let i = 0; i <= numLights; i++) {
+                        const t = i / numLights;
+                        const lightX = segment.startX + (segment.endX - segment.startX) * t;
+                        const lightY = segment.startY + (segment.endY - segment.startY) * t;
+                        
+                        const distanceFromPlayer = Math.abs(lightX - (playerX + cameraOffsetX));
+                        const pulsePhase = (lightX / 100) - (time * pulseSpeed);
+                        const pulse = (Math.sin(pulsePhase) + 1) / 2;
+                        
+                        const proximityFade = Math.max(0, 1 - (distanceFromPlayer / 400));
+                        const brightness = pulse * 0.7 + 0.3;
+                        const alpha = brightness * proximityFade;
+                        
+                        if (alpha > 0.1) {
+                            const screenLightX = lightX - cameraOffsetX;
+                            const screenLightY = lightY - cameraOffsetY;
+                            const radius = 8 + pulse * 4;
+                            
+                            const gradient = ctx.createRadialGradient(
+                                screenLightX, screenLightY, 0,
+                                screenLightX, screenLightY, radius * 2
+                            );
+                            
+                            const hue = (pulse * 60 + 280) % 360;
+                            gradient.addColorStop(0, `hsla(${hue}, 100%, 70%, ${alpha})`);
+                            gradient.addColorStop(0.5, `hsla(${hue}, 100%, 50%, ${alpha * 0.5})`);
+                            gradient.addColorStop(1, `hsla(${hue}, 100%, 50%, 0)`);
+                            
+                            ctx.fillStyle = gradient;
+                            ctx.beginPath();
+                            ctx.arc(screenLightX, screenLightY, radius * 2, 0, Math.PI * 2);
+                            ctx.fill();
+                            
+                            ctx.fillStyle = `rgba(255,255,255,${alpha * 0.8})`;
+                            ctx.beginPath();
+                            ctx.arc(screenLightX, screenLightY, radius * 0.4, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                }
+            });
+        }
+        
+        function drawIndicators() {
+            if (!showIndicators) return;
+            
+            ctx.shadowBlur = 10;
+            
+            segments.forEach(segment => {
+                if (segment.isFunnel) return;
+                
+                const screenX = segment.turnX - cameraOffsetX;
+                const screenY = segment.turnY - cameraOffsetY;
+                
+                if (screenX > -50 && screenX < canvas.width + 50 &&
+                    screenY > -50 && screenY < canvas.height + 50) {
+                    
+                    const size = 15;
+                    ctx.fillStyle = segment.upper ? '#ffff00' : '#00ff00';
+                    ctx.shadowColor = ctx.fillStyle;
+                    
+                    ctx.beginPath();
+                    if (segment.direction === -1) {
+                        const arrowY = segment.upper ? screenY - 25 : screenY + 25;
+                        ctx.moveTo(screenX, arrowY - size);
+                        ctx.lineTo(screenX - size, arrowY + size);
+                        ctx.lineTo(screenX + size, arrowY + size);
+                    } else {
+                        const arrowY = segment.upper ? screenY - 25 : screenY + 25;
+                        ctx.moveTo(screenX, arrowY + size);
+                        ctx.lineTo(screenX - size, arrowY - size);
+                        ctx.lineTo(screenX + size, arrowY - size);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            });
+            
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawSegments() {
+            ctx.strokeStyle = '#ff00ff';
+            ctx.lineWidth = segmentThickness;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff00ff';
+            
+            segments.forEach(segment => {
+                if (!hideSegments || segment.isFunnel) {
+                    const screenStartX = segment.startX - cameraOffsetX;
+                    const screenEndX = segment.endX - cameraOffsetX;
+                    const screenStartY = segment.startY - cameraOffsetY;
+                    const screenEndY = segment.endY - cameraOffsetY;
+                    
+                    if (screenEndX > -50 && screenStartX < canvas.width + 50) {
+                        // Chromatic aberration effect
+                        if (chromaShift) {
+                            const shift = 2;
+                            
+                            // Red channel
+                            ctx.strokeStyle = 'rgba(255, 0, 128, 0.3)';
+                            ctx.beginPath();
+                            ctx.moveTo(screenStartX - shift, screenStartY);
+                            ctx.lineTo(screenEndX - shift, screenEndY);
+                            ctx.stroke();
+                            
+                            // Blue channel
+                            ctx.strokeStyle = 'rgba(0, 128, 255, 0.3)';
+                            ctx.beginPath();
+                            ctx.moveTo(screenStartX + shift, screenStartY);
+                            ctx.lineTo(screenEndX + shift, screenEndY);
+                            ctx.stroke();
+                        }
+                        
+                        // Main line
+                        ctx.strokeStyle = '#ff00ff';
+                        ctx.beginPath();
+                        ctx.moveTo(screenStartX, screenStartY);
+                        ctx.lineTo(screenEndX, screenEndY);
+                        ctx.stroke();
+                        
+                        ctx.shadowBlur = 0;
+                        ctx.strokeStyle = segment.upper ? '#ff00ff' : '#8a2be2';
+                        ctx.lineWidth = segmentThickness + 2;
+                        ctx.globalAlpha = 0.3;
+                        ctx.beginPath();
+                        ctx.moveTo(screenStartX, screenStartY);
+                        ctx.lineTo(screenEndX, screenEndY);
+                        ctx.stroke();
+                        ctx.globalAlpha = 1;
+                        
+                        ctx.strokeStyle = '#ff00ff';
+                        ctx.lineWidth = segmentThickness;
+                        ctx.shadowBlur = 15;
+                    }
+                }
+            });
+            
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawTrail() {
+            if (!showPlayerTrail || trailSegments.length === 0) return;
+            
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 8;
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#00ffff';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            let totalLength = 0;
+            for (let segment of trailSegments) {
+                totalLength += Math.hypot(
+                    segment.endX - segment.startX,
+                    segment.endY - segment.startY
+                );
+            }
+            
+            let accumulatedLength = 0;
+            for (let segment of trailSegments) {
+                const segLen = Math.hypot(
+                    segment.endX - segment.startX,
+                    segment.endY - segment.startY
+                );
+                
+                const alpha = Math.min(1, (totalLength - accumulatedLength) / maxTrailLength);
+                
+                if (alpha > 0.05) {
+                    // Chromatic aberration on trail
+                    if (chromaShift) {
+                        const shift = 1.5;
+                        
+                        ctx.globalAlpha = alpha * 0.2;
+                        ctx.strokeStyle = '#ff0088';
+                        ctx.beginPath();
+                        ctx.moveTo(segment.startX - cameraOffsetX - shift, segment.startY - cameraOffsetY);
+                        ctx.lineTo(segment.endX - cameraOffsetX - shift, segment.endY - cameraOffsetY);
+                        ctx.stroke();
+                        
+                        ctx.strokeStyle = '#0088ff';
+                        ctx.beginPath();
+                        ctx.moveTo(segment.startX - cameraOffsetX + shift, segment.startY - cameraOffsetY);
+                        ctx.lineTo(segment.endX - cameraOffsetX + shift, segment.endY - cameraOffsetY);
+                        ctx.stroke();
+                    }
+                    
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.globalAlpha = alpha * 0.7;
+                    ctx.beginPath();
+                    ctx.moveTo(segment.startX - cameraOffsetX, segment.startY - cameraOffsetY);
+                    ctx.lineTo(segment.endX - cameraOffsetX, segment.endY - cameraOffsetY);
+                    ctx.stroke();
+                }
+                
+                accumulatedLength += segLen;
+            }
+            
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawPlayer() {
+            const screenY = playerY - cameraOffsetY;
+            
+            // Chromatic aberration on player
+            if (chromaShift) {
+                const shift = 2;
+                
+                ctx.globalAlpha = 0.4;
+                ctx.fillStyle = '#ff0088';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#ff0088';
+                ctx.beginPath();
+                ctx.arc(playerX - shift, screenY, playerSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#0088ff';
+                ctx.shadowColor = '#0088ff';
+                ctx.beginPath();
+                ctx.arc(playerX + shift, screenY, playerSize, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+            
+            const gradient = ctx.createRadialGradient(playerX, screenY, 0, playerX, screenY, playerSize);
+            gradient.addColorStop(0, '#00ffff');
+            gradient.addColorStop(0.5, '#00ccff');
+            gradient.addColorStop(1, '#0088ff');
+            
+            ctx.fillStyle = gradient;
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#00ffff';
+            ctx.beginPath();
+            ctx.arc(playerX, screenY, playerSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(playerX, screenY, playerSize / 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+        }
+        
+        function pointToSegmentDistance(px, py, x1, y1, x2, y2) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const lenSq = dx * dx + dy * dy;
+            
+            if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+            
+            let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+            t = Math.max(0, Math.min(1, t));
+            
+            const cx = x1 + t * dx;
+            const cy = y1 + t * dy;
+            return Math.hypot(px - cx, py - cy);
+        }
+        
+        function checkCollision() {
+            const playerWorldX = playerX + cameraOffsetX;
+            
+            for (let segment of segments) {
+                if (playerWorldX + playerSize * 2 < segment.startX ||
+                    playerWorldX - playerSize * 2 > segment.endX) {
+                    continue;
+                }
+                
+                const dist = pointToSegmentDistance(
+                    playerWorldX,
+                    playerY,
+                    segment.startX,
+                    segment.startY,
+                    segment.endX,
+                    segment.endY
+                );
+                
+                if (dist < playerSize + segmentThickness / 2) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            ctx.fillStyle = 'rgba(15, 10, 26, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const verticalSpeed = miniMode ? basePlayerSpeed * 2 : basePlayerSpeed;
+            const horizontalSpeed = basePlayerSpeed * gameSpeed;
+            
+            const currentDirection = isAscending ? -1 : 1;
+            
+            const oldPlayerY = playerY;
+            const oldCameraX = cameraOffsetX;
+            
+            if (isAscending) playerY -= verticalSpeed * gameSpeed;
+            else playerY += verticalSpeed * gameSpeed;
+            
+            cameraOffsetX += horizontalSpeed;
+            cameraOffsetY = playerY - canvas.height / 2;
+            
+            if (lastDirection === 0) {
+                currentTrailStartX = playerX + oldCameraX;
+                currentTrailStartY = oldPlayerY;
+                lastDirection = currentDirection;
+            } else if (currentDirection !== lastDirection) {
+                trailSegments.push({
+                    startX: currentTrailStartX,
+                    startY: currentTrailStartY,
+                    endX: playerX + oldCameraX,
+                    endY: oldPlayerY
+                });
+                
+                currentTrailStartX = playerX + oldCameraX;
+                currentTrailStartY = oldPlayerY;
+                lastDirection = currentDirection;
+            }
+            
+            let totalLength = 0;
+            for (let i = trailSegments.length - 1; i >= 0; i--) {
+                const s = trailSegments[i];
+                totalLength += Math.hypot(s.endX - s.startX, s.endY - s.startY);
+                if (totalLength > maxTrailLength) {
+                    trailSegments = trailSegments.slice(i + 1);
+                    break;
+                }
+            }
+            
+            score = Math.floor(cameraOffsetX / 10);
+            document.getElementById('scoreValue').textContent = score;
+            
+            while (nextSegmentX - cameraOffsetX < canvas.width + 500) {
+                addSegment();
+            }
+            
+            segments = segments.filter(seg => seg.endX - cameraOffsetX > -100);
+            
+            updateParticles();
+            
+            drawParallaxLayers();
+            drawNineCirclesEffect();
+            drawTrail();
+            drawSegments();
+            drawIndicators();
+            drawParticles();
+            drawPlayer();
+            
+            if (checkCollision()) {
+                gameOver();
+                return;
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function startGame() {
+            gameRunning = true;
+            score = 0;
+            playerY = canvas.height / 2;
+            cameraOffsetX = 0;
+            cameraOffsetY = 0;
+            isAscending = false;
+            trailSegments = [];
+            currentTrailStartX = 0;
+            currentTrailStartY = 0;
+            lastDirection = 0;
+            
+            segmentGap = baseSegmentGap / tunnelTightness;
+            initSegments();
+            initParallaxLayers();
+            initParticles();
+            
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            
+            gameLoop();
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = `Distance: ${score}`;
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+        }
+        
+        // Event listeners for options
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                gameSpeed = parseFloat(btn.dataset.speed);
+                document.getElementById('customSpeed').value = gameSpeed;
+            });
+        });
+        
+        document.getElementById('customSpeed').addEventListener('input', e => {
+            gameSpeed = parseFloat(e.target.value) || 1;
+            document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+        });
+        
+        document.getElementById('miniMode').addEventListener('change', e => {
+            miniMode = e.target.checked;
+        });
+        
+        document.getElementById('showIndicators').addEventListener('change', e => {
+            showIndicators = e.target.checked;
+        });
+        
+        document.getElementById('hideSegments').addEventListener('change', e => {
+            hideSegments = e.target.checked;
+        });
+        
+        document.getElementById('nineCirclesEffect').addEventListener('change', e => {
+            nineCirclesEffect = e.target.checked;
+        });
+        
+        document.getElementById('tunnelTightness').addEventListener('input', e => {
+            tunnelTightness = parseFloat(e.target.value);
+            document.getElementById('tightnessValue').textContent = tunnelTightness.toFixed(1) + 'x';
+        });
+        
+        document.getElementById('showParallax').addEventListener('change', e => {
+            showParallax = e.target.checked;
+        });
+        
+        document.getElementById('showPlayerTrail').addEventListener('change', e => {
+            showPlayerTrail = e.target.checked;
+        });
+        
+        document.getElementById('showParticles').addEventListener('change', e => {
+            showParticles = e.target.checked;
+        });
+        
+        document.getElementById('chromaShift').addEventListener('change', e => {
+            chromaShift = e.target.checked;
+        });
+        
+        document.getElementById('startBtn').addEventListener('click', startGame);
+        document.getElementById('restartBtn').addEventListener('click', startGame);
+        
+        canvas.addEventListener('mousedown', () => {
+            if (gameRunning) isAscending = true;
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            if (gameRunning) isAscending = false;
+        });
+        
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            if (gameRunning) isAscending = true;
+        });
+        
+        canvas.addEventListener('touchend', e => {
+            e.preventDefault();
+            if (gameRunning) isAscending = false;
+        });
+        
+        window.addEventListener('keydown', () => {
+            if (gameRunning) isAscending = true;
+        });
+        
+        window.addEventListener('keyup', () => {
+            if (gameRunning) isAscending = false;
+        });
+        
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            if (!gameRunning) playerY = canvas.height / 2;
+        });
+    </script>
+</body>
+</html>
