@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plant Genetics Lab - Advanced System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #eee;
+        }
+
+        .container {
+            background: #0f3460;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            max-width: 1200px;
+            width: 100%;
+            border: 2px solid #16a085;
+        }
+
+        h1 {
+            text-align: center;
+            color: #16a085;
+            margin-bottom: 10px;
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .plant-name {
+            text-align: center;
+            color: #1abc9c;
+            margin-bottom: 5px;
+            font-size: 18px;
+            font-style: italic;
+            font-family: 'Georgia', serif;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #7fb3d5;
+            margin-bottom: 30px;
+            font-size: 13px;
+        }
+
+        .lab-area {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 30px;
+        }
+
+        .controls {
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 12px;
+            height: fit-content;
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #16a085;
+        }
+
+        .controls::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .controls::-webkit-scrollbar-track {
+            background: #0f3460;
+            border-radius: 4px;
+        }
+
+        .controls::-webkit-scrollbar-thumb {
+            background: #16a085;
+            border-radius: 4px;
+        }
+
+        .gene-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .gene-control {
+            background: #0f3460;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #2c3e50;
+            transition: all 0.3s;
+        }
+
+        .gene-control:hover {
+            border-color: #16a085;
+            box-shadow: 0 0 10px rgba(22, 160, 133, 0.3);
+        }
+
+        .gene-control.active {
+            background: #16a085;
+            border-color: #1abc9c;
+        }
+
+        .gene-label {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1abc9c;
+            margin-bottom: 8px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+        }
+
+        .gene-control.active .gene-label {
+            color: #fff;
+        }
+
+        .gene-description {
+            font-size: 11px;
+            color: #7fb3d5;
+            margin-bottom: 8px;
+        }
+
+        .gene-control.active .gene-description {
+            color: #e8f8f5;
+        }
+
+        .gene-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+
+        .toggle-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e74c3c;
+            font-family: 'Courier New', monospace;
+        }
+
+        .gene-control.active .toggle-value {
+            color: #fff;
+        }
+
+        .canvas-area {
+            background: linear-gradient(to bottom, #87ceeb 0%, #e0f6ff 50%, #8b7355 50%, #a0826d 100%);
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #16a085;
+        }
+
+        canvas {
+            display: block;
+            background: transparent;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            padding: 12px;
+            background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(22, 160, 133, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .btn-full {
+            grid-column: 1 / -1;
+        }
+
+        .genome-display {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #16a085;
+        }
+
+        .import-export {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #16a085;
+        }
+
+        .hex-input {
+            width: 100%;
+            background: #0f3460;
+            border: 1px solid #16a085;
+            color: #1abc9c;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .hex-input:focus {
+            outline: none;
+            border-color: #1abc9c;
+            box-shadow: 0 0 10px rgba(26, 188, 156, 0.3);
+        }
+
+        .genome-title {
+            color: #16a085;
+            font-size: 12px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .genome-sequence {
+            color: #1abc9c;
+            font-size: 11px;
+            word-break: break-all;
+            line-height: 1.6;
+            font-family: 'Courier New', monospace;
+        }
+
+        .stats {
+            background: #1a1a2e;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #16a085;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .stat-label {
+            color: #7fb3d5;
+        }
+
+        .stat-value {
+            color: #1abc9c;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧬 Plant Genetics Lab</h1>
+        <div class="plant-name" id="plantName">Geneticus laboratoria</div>
+        <p class="subtitle">Advanced Binary Gene System - 94 Genes - Hexadecimal Import/Export</p>
+        
+        <div class="lab-area">
+            <div class="controls">
+                <div class="import-export">
+                    <div class="genome-title">Import/Export Genome (Hex)</div>
+                    <input type="text" class="hex-input" id="hexInput" placeholder="Paste hex code to import...">
+                    <div class="button-group">
+                        <button class="btn" onclick="exportGenes()">📋 Copy Hex</button>
+                        <button class="btn" onclick="importGenes()">📥 Import Hex</button>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn" onclick="randomizeGenes()">🎲 Randomize</button>
+                    <button class="btn" onclick="redrawPlant()">🔄 Redraw</button>
+                    <button class="btn btn-secondary" onclick="clearAllGenes()">Reset All</button>
+                    <button class="btn btn-secondary" onclick="invertGenes()">Invert All</button>
+                </div>
+
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Active Genes:</span>
+                        <span class="stat-value" id="activeGenes">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Genes:</span>
+                        <span class="stat-value" id="totalGenes">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Hex Code Length:</span>
+                        <span class="stat-value" id="hexLength">0</span>
+                    </div>
+                    <div class="stat-item" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #16a085;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="animationToggle" checked style="margin-right: 8px; cursor: pointer;">
+                            <span class="stat-label" style="margin: 0;">Enable Animation</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="gene-grid" id="geneGrid"></div>
+            </div>
+
+            <div class="canvas-area">
+                <canvas id="plantCanvas" width="600" height="600"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('plantCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Define all genes with their 4-character codes
+        const geneDefinitions = [
+            // Height & Structure (HT**)
+            { code: 'HT01', desc: 'Tall growth', category: 'height' },
+            { code: 'HT02', desc: 'Extra tall', category: 'height' },
+            { code: 'ST01', desc: 'Thick stem', category: 'stem' },
+            { code: 'ST02', desc: 'Very thick', category: 'stem' },
+            { code: 'ST03', desc: 'Woody stem', category: 'stem' },
+            
+            // Branching (BR**)
+            { code: 'BR01', desc: 'Many branches', category: 'branch' },
+            { code: 'BR02', desc: 'Wide angles', category: 'branch' },
+            { code: 'BR03', desc: 'Symmetrical', category: 'branch' },
+            { code: 'BR04', desc: 'Upper branches', category: 'branch' },
+            { code: 'BR05', desc: 'Lower branches', category: 'branch' },
+            
+            // Leaves (LF**)
+            { code: 'LF01', desc: 'Large leaves', category: 'leaf' },
+            { code: 'LF02', desc: 'Many leaves', category: 'leaf' },
+            { code: 'LF03', desc: 'Pointed tips', category: 'leaf' },
+            { code: 'LF04', desc: 'Round shape', category: 'leaf' },
+            { code: 'LF05', desc: 'Serrated edge', category: 'leaf' },
+            { code: 'LF06', desc: 'Dark green', category: 'leaf' },
+            { code: 'LF07', desc: 'Light green', category: 'leaf' },
+            { code: 'LF08', desc: 'Drooping', category: 'leaf' },
+            
+            // Flowers (FL**)
+            { code: 'FL01', desc: 'Has flowers', category: 'flower' },
+            { code: 'FL02', desc: 'Large petals', category: 'flower' },
+            { code: 'FL03', desc: 'Many petals', category: 'flower' },
+            { code: 'FL04', desc: 'Bright color', category: 'flower' },
+            { code: 'FL05', desc: 'Multiple blooms', category: 'flower' },
+            { code: 'FL06', desc: 'Star shape', category: 'flower' },
+            
+            // Color (CL**)
+            { code: 'CL01', desc: 'Red pigment', category: 'color' },
+            { code: 'CL02', desc: 'Blue pigment', category: 'color' },
+            { code: 'CL03', desc: 'Yellow pigment', category: 'color' },
+            { code: 'CL04', desc: 'Dark stem', category: 'color' },
+            { code: 'CL05', desc: 'Purple hue', category: 'color' },
+            
+            // Special traits (SP**)
+            { code: 'SP01', desc: 'Thorns', category: 'special' },
+            { code: 'SP02', desc: 'Fruit/berries', category: 'special' },
+            { code: 'SP03', desc: 'Waxy coating', category: 'special' },
+            { code: 'SP04', desc: 'Fuzzy texture', category: 'special' },
+            { code: 'SP05', desc: 'Twisted growth', category: 'special' },
+            { code: 'SP06', desc: 'Variegated', category: 'special' },
+            
+            // Root & base (RT**)
+            { code: 'RT01', desc: 'Visible roots', category: 'root' },
+            { code: 'RT02', desc: 'Bulbous base', category: 'root' },
+            { code: 'RT03', desc: 'Aerial roots', category: 'root' },
+            
+            // Exotic traits (EX**)
+            { code: 'EX01', desc: 'Bioluminescent', category: 'exotic' },
+            { code: 'EX02', desc: 'Crystalline', category: 'exotic' },
+            { code: 'EX03', desc: 'Carnivorous', category: 'exotic' },
+            { code: 'EX04', desc: 'Floating spores', category: 'exotic' },
+            { code: 'EX05', desc: 'Spiral growth', category: 'exotic' },
+            { code: 'EX06', desc: 'Multiple stems', category: 'exotic' },
+            { code: 'EX07', desc: 'Translucent', category: 'exotic' },
+            { code: 'EX08', desc: 'Iridescent', category: 'exotic' },
+            { code: 'EX09', desc: 'Vines/tendrils', category: 'exotic' },
+            { code: 'EX10', desc: 'Segmented stem', category: 'exotic' },
+            { code: 'EX11', desc: 'Bulbous pods', category: 'exotic' },
+            { code: 'EX12', desc: 'Webbed leaves', category: 'exotic' },
+            { code: 'EX13', desc: 'Spotted pattern', category: 'exotic' },
+            { code: 'EX14', desc: 'Gradient color', category: 'exotic' },
+            { code: 'EX15', desc: 'Glowing center', category: 'exotic' },
+            { code: 'EX16', desc: 'Fractal branches', category: 'exotic' },
+            { code: 'EX17', desc: 'Prismatic leaves', category: 'exotic' },
+            { code: 'EX18', desc: 'Droopy flowers', category: 'exotic' },
+            { code: 'EX19', desc: 'Spiky leaves', category: 'exotic' },
+            { code: 'EX20', desc: 'Curled leaves', category: 'exotic' },
+            
+            // Mutation genes (MU**)
+            { code: 'MU01', desc: 'Double flowers', category: 'mutation' },
+            { code: 'MU02', desc: 'Split leaves', category: 'mutation' },
+            { code: 'MU03', desc: 'Bushy growth', category: 'mutation' },
+            { code: 'MU04', desc: 'Narrow leaves', category: 'mutation' },
+            { code: 'MU05', desc: 'Wide leaves', category: 'mutation' },
+            { code: 'MU06', desc: 'Clustered fruit', category: 'mutation' },
+            { code: 'MU07', desc: 'Long branches', category: 'mutation' },
+            { code: 'MU08', desc: 'Short branches', category: 'mutation' },
+            { code: 'MU09', desc: 'Umbrella top', category: 'mutation' },
+            { code: 'MU10', desc: 'Weeping form', category: 'mutation' },
+            
+            // Pattern genes (PT**)
+            { code: 'PT01', desc: 'Striped leaves', category: 'pattern' },
+            { code: 'PT02', desc: 'Mottled color', category: 'pattern' },
+            { code: 'PT03', desc: 'Edge highlight', category: 'pattern' },
+            { code: 'PT04', desc: 'Vein pattern', category: 'pattern' },
+            { code: 'PT05', desc: 'Dotted stem', category: 'pattern' },
+            { code: 'PT06', desc: 'Banded stem', category: 'pattern' },
+            { code: 'PT07', desc: 'Dual-tone leaf', category: 'pattern' },
+            { code: 'PT08', desc: 'Speckled', category: 'pattern' },
+            { code: 'PT09', desc: 'Metallic sheen', category: 'pattern' },
+            { code: 'PT10', desc: 'Frosted tips', category: 'pattern' },
+            
+            // Environmental (EN**)
+            { code: 'EN01', desc: 'Desert adapted', category: 'environment' },
+            { code: 'EN02', desc: 'Water adapted', category: 'environment' },
+            { code: 'EN03', desc: 'Cold hardy', category: 'environment' },
+            { code: 'EN04', desc: 'Tropical', category: 'environment' },
+            { code: 'EN05', desc: 'Succulent', category: 'environment' },
+            { code: 'EN06', desc: 'Climbing', category: 'environment' },
+            { code: 'EN07', desc: 'Compact form', category: 'environment' },
+            { code: 'EN08', desc: 'Sprawling', category: 'environment' },
+            { code: 'EN09', desc: 'Shade loving', category: 'environment' },
+            { code: 'EN10', desc: 'Sun seeking', category: 'environment' },
+            
+            // Growth pattern (GP**)
+            { code: 'GP01', desc: 'Alternate leaves', category: 'growth' },
+        ];
+
+        let genes = {};
+        let randomSeed = Math.random();
+        let animationTime = 0;
+        let animationFrame = null;
+        let animationEnabled = true;
+
+        // Markov chain name generation
+        function generateScientificName(hexCode) {
+            // Latin-sounding syllables for genus and species names
+            const genusPrefixes = ['Acer', 'Phyll', 'Chlor', 'Xanth', 'Erythr', 'Leuc', 'Melan', 
+                                   'Phlor', 'Rhod', 'Cyan', 'Verd', 'Arg', 'Aur', 'Purp', 'Ferr',
+                                   'Macro', 'Micro', 'Poly', 'Oligo', 'Mono', 'Hetero', 'Iso'];
+            const genusSuffixes = ['phylla', 'dendron', 'flora', 'carpa', 'anthus', 'spermum', 'phyta',
+                                   'pteris', 'stemon', 'gynum', 'cladus', 'thrix', 'spora'];
+            
+            const speciesPrefixes = ['multi', 'longi', 'brevi', 'grandi', 'parvi', 'lati', 'angust',
+                                     'arbo', 'herba', 'fruti', 'volubi', 'ramo', 'foli', 'flori',
+                                     'spino', 'glabr', 'hirsu', 'seric', 'tomen', 'vill'];
+            const speciesSuffixes = ['flora', 'folia', 'caulis', 'ramosa', 'pinnata', 'lobata', 'dentata',
+                                     'serrata', 'crenata', 'repens', 'scandens', 'erecta', 'prostrata',
+                                     'pendula', 'tortuosa', 'spiralis', 'cristata', 'variegata'];
+            
+            // Use hex code to deterministically select components
+            const hash = (str, max) => {
+                let h = 0;
+                for (let i = 0; i < str.length; i++) {
+                    h = ((h << 5) - h) + str.charCodeAt(i);
+                    h = h & h;
+                }
+                return Math.abs(h) % max;
+            };
+            
+            // Generate genus name from first half of hex
+            const genusHex = hexCode.substring(0, Math.floor(hexCode.length / 2));
+            const genusPrefix = genusPrefixes[hash(genusHex, genusPrefixes.length)];
+            const genusSuffix = genusSuffixes[hash(genusHex + '1', genusSuffixes.length)];
+            const genus = genusPrefix + genusSuffix.toLowerCase();
+            
+            // Generate species name from second half of hex
+            const speciesHex = hexCode.substring(Math.floor(hexCode.length / 2));
+            const speciesPrefix = speciesPrefixes[hash(speciesHex, speciesPrefixes.length)];
+            const speciesSuffix = speciesSuffixes[hash(speciesHex + '2', speciesSuffixes.length)];
+            const species = speciesPrefix + speciesSuffix.toLowerCase();
+            
+            // Capitalize first letter of genus
+            return genus.charAt(0).toUpperCase() + genus.slice(1) + ' ' + species;
+        }
+
+        // Initialize genes
+        function initGenes() {
+            geneDefinitions.forEach(gene => {
+                genes[gene.code] = 0;
+            });
+            updateUI();
+        }
+
+        // Create gene controls
+        function createGeneControls() {
+            const grid = document.getElementById('geneGrid');
+            grid.innerHTML = '';
+            
+            geneDefinitions.forEach(gene => {
+                const control = document.createElement('div');
+                control.className = 'gene-control';
+                control.id = `gene-${gene.code}`;
+                control.innerHTML = `
+                    <div class="gene-label">${gene.code}</div>
+                    <div class="gene-description">${gene.desc}</div>
+                    <div class="gene-toggle">
+                        <span class="toggle-value">${genes[gene.code]}</span>
+                    </div>
+                `;
+                control.onclick = () => toggleGene(gene.code);
+                grid.appendChild(control);
+            });
+            
+            document.getElementById('totalGenes').textContent = geneDefinitions.length;
+        }
+
+        function toggleGene(code) {
+            genes[code] = genes[code] === 1 ? 0 : 1;
+            updateUI();
+            drawPlant();
+        }
+
+        function updateUI() {
+            // Update gene controls
+            geneDefinitions.forEach(gene => {
+                const control = document.getElementById(`gene-${gene.code}`);
+                if (control) {
+                    control.className = genes[gene.code] === 1 ? 'gene-control active' : 'gene-control';
+                    control.querySelector('.toggle-value').textContent = genes[gene.code];
+                }
+            });
+
+            // Update stats
+            const activeCount = Object.values(genes).filter(v => v === 1).length;
+            document.getElementById('activeGenes').textContent = activeCount;
+
+            // Calculate hex code
+            const hexCode = genesToHex();
+            document.getElementById('hexLength').textContent = hexCode.length + ' chars';
+            
+            // Generate and display scientific name
+            const scientificName = generateScientificName(hexCode);
+            document.getElementById('plantName').textContent = scientificName;
+        }
+
+        function randomizeGenes() {
+            geneDefinitions.forEach(gene => {
+                genes[gene.code] = Math.random() > 0.5 ? 1 : 0;
+            });
+            randomSeed = Math.random();
+            updateUI();
+            drawPlant();
+        }
+
+        function clearAllGenes() {
+            geneDefinitions.forEach(gene => {
+                genes[gene.code] = 0;
+            });
+            randomSeed = Math.random();
+            updateUI();
+            drawPlant();
+        }
+
+        function invertGenes() {
+            geneDefinitions.forEach(gene => {
+                genes[gene.code] = genes[gene.code] === 1 ? 0 : 1;
+            });
+            randomSeed = Math.random();
+            updateUI();
+            drawPlant();
+        }
+
+        function redrawPlant() {
+            randomSeed = Math.random();
+            drawPlant();
+        }
+
+        function exportGenes() {
+            const hex = genesToHex();
+            document.getElementById('hexInput').value = hex;
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(hex).then(() => {
+                const btn = event.target;
+                const oldText = btn.textContent;
+                btn.textContent = '✓ Copied!';
+                setTimeout(() => {
+                    btn.textContent = oldText;
+                }, 2000);
+            });
+        }
+
+        function importGenes() {
+            const hex = document.getElementById('hexInput').value.trim().toUpperCase();
+            if (!hex) return;
+            
+            try {
+                hexToGenes(hex);
+                randomSeed = Math.random();
+                updateUI();
+                drawPlant();
+            } catch (e) {
+                alert('Invalid hex code! Please check the format.');
+            }
+        }
+
+        function genesToHex() {
+            // Convert genes to binary string
+            const binary = geneDefinitions.map(g => genes[g.code]).join('');
+            
+            // Convert binary to hex (4 bits at a time)
+            let hex = '';
+            for (let i = 0; i < binary.length; i += 4) {
+                const chunk = binary.substr(i, 4).padEnd(4, '0');
+                hex += parseInt(chunk, 2).toString(16).toUpperCase();
+            }
+            return hex;
+        }
+
+        function hexToGenes(hex) {
+            // Convert hex to binary
+            let binary = '';
+            for (let i = 0; i < hex.length; i++) {
+                binary += parseInt(hex[i], 16).toString(2).padStart(4, '0');
+            }
+            
+            // Apply to genes
+            for (let i = 0; i < geneDefinitions.length && i < binary.length; i++) {
+                genes[geneDefinitions[i].code] = parseInt(binary[i]);
+            }
+        }
+
+        // Seeded random function
+        function seededRandom() {
+            randomSeed = (randomSeed * 9301 + 49297) % 233280;
+            return randomSeed / 233280;
+        }
+
+        function drawPlant() {
+            // Stop any existing animation
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+            }
+            
+            // Start animation if enabled, otherwise just render once
+            if (animationEnabled) {
+                animate();
+            } else {
+                renderPlant();
+            }
+        }
+
+        function animate() {
+            if (!animationEnabled) {
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+                return;
+            }
+            
+            animationTime += 0.005; // Much slower animation
+            renderPlant();
+            animationFrame = requestAnimationFrame(animate);
+        }
+
+        function renderPlant() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Save the current seed and restore it at the start to maintain consistent plant structure
+            const savedSeed = randomSeed;
+            
+            const baseX = canvas.width / 2;
+            const baseY = canvas.height - 80;
+            
+            // Apply gentle wind sway when animation is enabled
+            if (animationEnabled) {
+                const swayAmount = Math.sin(animationTime * 0.5) * 2; // Gentle sway ±2 pixels
+                ctx.save();
+                ctx.translate(swayAmount, 0);
+            }
+
+            // Calculate plant properties based on genes (NO variation from animation)
+            let height = 120;
+            if (genes['HT01'] === 1) height += 60;
+            if (genes['HT02'] === 1) height += 80;
+            height += (seededRandom() - 0.5) * 40;
+
+            let stemWidth = 4;
+            if (genes['ST01'] === 1) stemWidth += 3;
+            if (genes['ST02'] === 1) stemWidth += 4;
+            if (genes['EN05'] === 1) stemWidth += 5; // Succulent
+            stemWidth += (seededRandom() - 0.5) * 2;
+
+            let branches = 2;
+            if (genes['BR01'] === 1) branches += 3;
+            if (genes['BR04'] === 1) branches += 1;
+            if (genes['BR05'] === 1) branches += 1;
+            if (genes['EX06'] === 1) branches += 2; // Multiple stems
+            if (genes['MU03'] === 1) branches += 2; // Bushy
+
+            let branchAngle = 40;
+            if (genes['BR02'] === 1) branchAngle += 20;
+            if (genes['MU09'] === 1) branchAngle -= 15; // Umbrella
+            branchAngle += (seededRandom() - 0.5) * 15;
+
+            let leafSize = 15;
+            if (genes['LF01'] === 1) leafSize += 10;
+            if (genes['MU04'] === 1) leafSize -= 5; // Narrow
+            if (genes['MU05'] === 1) leafSize += 8; // Wide
+            if (genes['EN05'] === 1) leafSize += 6; // Succulent
+            leafSize += (seededRandom() - 0.5) * 5;
+
+            let leafCount = 4;
+            if (genes['LF02'] === 1) leafCount += 4;
+            if (genes['EN04'] === 1) leafCount += 2; // Tropical
+
+            let branchLength = height * 0.35;
+            if (genes['MU07'] === 1) branchLength *= 1.4; // Long branches
+            if (genes['MU08'] === 1) branchLength *= 0.7; // Short branches
+            if (genes['EN07'] === 1) branchLength *= 0.8; // Compact
+            if (genes['EN08'] === 1) branchLength *= 1.3; // Sprawling
+
+            // Stem color with smooth color shifts
+            let stemR = 139, stemG = 69, stemB = 19;
+            if (genes['CL04'] === 1) { stemR -= 40; stemG -= 30; stemB -= 10; }
+            if (genes['ST03'] === 1) { stemR -= 20; stemG -= 20; stemB -= 10; }
+            if (genes['EN01'] === 1) { stemR += 40; stemG += 20; } // Desert adapted
+            if (genes['EN02'] === 1) { stemG += 30; stemB += 30; } // Water adapted
+            if (genes['EN03'] === 1) { stemR -= 30; stemG -= 10; stemB += 20; } // Cold hardy
+            
+            // Exotic color modifications (smooth)
+            if (genes['EX02'] === 1) { stemR = 200; stemG = 220; stemB = 255; } // Crystalline
+            if (genes['EX08'] === 1) { // Iridescent - smooth color shift
+                const shift = Math.sin(animationTime) * 20;
+                stemR += shift;
+                stemG += Math.sin(animationTime + 2) * 20;
+                stemB += Math.sin(animationTime + 4) * 20;
+            }
+
+            // Leaf color
+            let leafR = 34, leafG = 139, leafB = 34;
+            if (genes['LF06'] === 1) { leafG -= 40; }
+            if (genes['LF07'] === 1) { leafG += 40; leafR += 60; }
+            if (genes['CL01'] === 1) { leafR += 40; }
+            if (genes['CL02'] === 1) { leafB += 60; }
+            if (genes['CL03'] === 1) { leafR += 60; leafG += 60; }
+            if (genes['CL05'] === 1) { leafR += 80; leafB += 80; leafG -= 20; }
+            if (genes['EN09'] === 1) { leafG -= 20; leafR -= 10; } // Shade loving
+            if (genes['EN10'] === 1) { leafG += 20; leafR += 20; } // Sun seeking
+            if (genes['EX07'] === 1) { // Translucent
+                leafR = Math.min(255, leafR + 80);
+                leafG = Math.min(255, leafG + 80);
+                leafB = Math.min(255, leafB + 80);
+            }
+            if (genes['EX17'] === 1) { // Prismatic - smooth shift
+                leafR += Math.sin(animationTime * 0.5) * 30;
+                leafG += Math.sin(animationTime * 0.5 + 2) * 30;
+                leafB += Math.sin(animationTime * 0.5 + 4) * 30;
+            }
+
+            // Apply gradient color gene
+            const useGradient = genes['EX14'] === 1;
+
+            // Draw floating spores (gentle animation)
+            if (genes['EX04'] === 1) {
+                drawSpores(baseX, baseY, height);
+            }
+
+            // Draw roots
+            if (genes['RT01'] === 1) {
+                drawRoots(baseX, baseY, stemWidth, genes['RT02'] === 1, genes['RT03'] === 1);
+            }
+
+            // Draw main stem(s)
+            const stemCount = genes['EX06'] === 1 ? 3 : 1;
+            for (let s = 0; s < stemCount; s++) {
+                const offsetX = stemCount > 1 ? (s - 1) * 40 : 0;
+                const stemColor = useGradient ? 
+                    createGradient(baseX + offsetX, baseY, baseX + offsetX, baseY - height, stemR, stemG, stemB) :
+                    `rgb(${Math.max(0, Math.min(255, stemR))}, ${Math.max(0, Math.min(255, stemG))}, ${Math.max(0, Math.min(255, stemB))})`;
+                
+                drawStem(baseX + offsetX, baseY, baseX + offsetX, baseY - height, stemWidth, stemColor);
+
+                // Draw branches
+                const branchSpacing = height / (branches + 1);
+                for (let i = 1; i <= branches; i++) {
+                    const progress = i / (branches + 1);
+                    let y = baseY - (branchSpacing * i);
+                    
+                    // Fractal branching
+                    if (genes['EX16'] === 1) {
+                        drawFractalBranch(baseX + offsetX, y, branchAngle, branchLength, 2, stemWidth * 0.6, 
+                            stemColor, leafSize, leafCount, leafR, leafG, leafB, useGradient);
+                    } else {
+                        if (genes['BR03'] !== 1) {
+                            y += (seededRandom() - 0.5) * 20;
+                        }
+
+                        const currentBranchLength = branchLength * (1 - progress * 0.3);
+                        let currentAngle = branchAngle + (seededRandom() - 0.5) * 10;
+                        
+                        if (genes['MU10'] === 1) currentAngle += 15; // Weeping form
+                        
+                        // Left branch
+                        drawBranch(baseX + offsetX, y, -currentAngle, currentBranchLength, stemWidth * 0.6, stemColor, 
+                            leafSize, leafCount, leafR, leafG, leafB, useGradient);
+                        
+                        // Right branch
+                        drawBranch(baseX + offsetX, y, currentAngle, currentBranchLength, stemWidth * 0.6, stemColor, 
+                            leafSize, leafCount, leafR, leafG, leafB, useGradient);
+                    }
+                }
+
+                // Draw vines/tendrils
+                if (genes['EX09'] === 1 || genes['EN06'] === 1) {
+                    drawVines(baseX + offsetX, baseY, height);
+                }
+
+                // Draw carnivorous trap
+                if (genes['EX03'] === 1) {
+                    drawTrap(baseX + offsetX, baseY - height * 0.7);
+                }
+
+                // Draw flowers
+                if (genes['FL01'] === 1) {
+                    let flowerSize = 10;
+                    if (genes['FL02'] === 1) flowerSize += 5;
+                    
+                    let petalCount = 5;
+                    if (genes['FL03'] === 1) petalCount += 3;
+
+                    let flowerR = 255, flowerG = 105, flowerB = 180;
+                    if (genes['FL04'] === 1) { flowerR = 255; flowerG = 20; flowerB = 20; }
+                    if (genes['CL01'] === 1) { flowerR = 255; flowerG = 50; flowerB = 50; }
+                    if (genes['CL02'] === 1) { flowerR = 100; flowerG = 150; flowerB = 255; }
+                    if (genes['CL03'] === 1) { flowerR = 255; flowerG = 255; flowerB = 50; }
+                    if (genes['CL05'] === 1) { flowerR = 200; flowerG = 100; flowerB = 255; }
+                    if (genes['EN04'] === 1) { flowerR = 255; flowerG = 100; flowerB = 150; } // Tropical
+
+                    const flowerCount = genes['FL05'] === 1 ? 3 : genes['MU01'] === 1 ? 2 : 1;
+                    for (let i = 0; i < flowerCount; i++) {
+                        const flowerY = baseY - height - (i * 15) + (seededRandom() - 0.5) * 10;
+                        const flowerX = baseX + offsetX + (seededRandom() - 0.5) * 20;
+                        drawFlower(flowerX, flowerY, flowerSize, petalCount, flowerR, flowerG, flowerB, 
+                            genes['FL06'] === 1, genes['EX15'] === 1, genes['EX18'] === 1);
+                    }
+                }
+
+                // Draw bulbous pods
+                if (genes['EX11'] === 1) {
+                    drawPods(baseX + offsetX, baseY, height);
+                }
+
+                // Draw fruits/berries
+                if (genes['SP02'] === 1) {
+                    const fruitCount = genes['MU06'] === 1 ? 6 : 3;
+                    for (let i = 0; i < fruitCount; i++) {
+                        const fruitX = baseX + offsetX + (seededRandom() - 0.5) * 60;
+                        const fruitY = baseY - height * (0.3 + seededRandom() * 0.6);
+                        drawFruit(fruitX, fruitY);
+                    }
+                }
+            }
+
+            // Draw bioluminescent glow overlay (gentle pulsing)
+            if (genes['EX01'] === 1) {
+                drawBioluminescence(baseX, baseY, height);
+            }
+            
+            // Restore wind sway transform
+            if (animationEnabled) {
+                ctx.restore();
+            }
+            
+            // Restore seed for next frame
+            randomSeed = savedSeed;
+        }
+
+        function createGradient(x1, y1, x2, y2, r, g, b) {
+            const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+            gradient.addColorStop(0, `rgb(${Math.max(0, r-30)}, ${Math.max(0, g-30)}, ${Math.max(0, b-30)})`);
+            gradient.addColorStop(0.5, `rgb(${r}, ${g}, ${b})`);
+            gradient.addColorStop(1, `rgb(${Math.min(255, r+30)}, ${Math.min(255, g+30)}, ${Math.min(255, b+30)})`);
+            return gradient;
+        }
+
+        function drawStem(x1, y1, x2, y2, width, color) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.lineCap = 'round';
+            
+            const segmented = genes['EX10'] === 1;
+            const twisted = genes['SP05'] === 1 || genes['EX05'] === 1;
+            
+            if (segmented) {
+                // Draw segmented stem
+                const segments = 8;
+                const segmentHeight = (y2 - y1) / segments;
+                for (let i = 0; i < segments; i++) {
+                    const sy1 = y1 + segmentHeight * i;
+                    const sy2 = y1 + segmentHeight * (i + 0.8);
+                    ctx.beginPath();
+                    ctx.moveTo(x1, sy1);
+                    ctx.lineTo(x2, sy2);
+                    ctx.stroke();
+                    
+                    // Draw segment joint
+                    ctx.fillStyle = typeof color === 'string' ? color : '#654321';
+                    ctx.beginPath();
+                    ctx.arc(x1, sy2, width * 0.8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            } else {
+                ctx.beginPath();
+                
+                if (twisted) {
+                    // Draw gently twisted stem
+                    const segments = 5;
+                    for (let i = 0; i < segments; i++) {
+                        const t1 = i / segments;
+                        const t2 = (i + 1) / segments;
+                        const sx1 = x1 + (x2 - x1) * t1;
+                        const sy1 = y1 + (y2 - y1) * t1;
+                        const sx2 = x1 + (x2 - x1) * t2;
+                        const sy2 = y1 + (y2 - y1) * t2;
+                        const offset = Math.sin(t1 * Math.PI * 4) * width * 2;
+                        
+                        if (i === 0) ctx.moveTo(sx1, sy1);
+                        ctx.quadraticCurveTo(sx1 + offset, (sy1 + sy2) / 2, sx2, sy2);
+                    }
+                } else {
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                }
+                
+                ctx.stroke();
+            }
+
+            // Pattern genes
+            if (genes['PT05'] === 1) { // Dotted stem
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                for (let i = 0; i < 5; i++) {
+                    const t = (i + 1) / 6;
+                    const dx = x1 + (x2 - x1) * t;
+                    const dy = y1 + (y2 - y1) * t;
+                    ctx.beginPath();
+                    ctx.arc(dx, dy, width * 0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            if (genes['PT06'] === 1) { // Banded stem
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.lineWidth = width * 0.4;
+                for (let i = 0; i < 4; i++) {
+                    const t = (i + 1) / 5;
+                    const dy = y1 + (y2 - y1) * t;
+                    ctx.beginPath();
+                    ctx.moveTo(x1 - width/2, dy);
+                    ctx.lineTo(x1 + width/2, dy);
+                    ctx.stroke();
+                }
+            }
+
+            // Add texture if waxy
+            if (genes['SP03'] === 1) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = width * 0.3;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+        }
+
+        function drawBranch(x, y, angle, length, width, color, leafSize, leafCount, leafR, leafG, leafB, useGradient) {
+            const rad = (angle * Math.PI) / 180;
+            const endX = x + Math.cos(rad) * length;
+            const endY = y - Math.sin(rad) * length;
+            
+            drawStem(x, y, endX, endY, width, color);
+
+            // Draw thorns
+            if (genes['SP01'] === 1) {
+                const thornCount = 2 + Math.floor(seededRandom() * 3);
+                for (let i = 0; i < thornCount; i++) {
+                    const t = (i + 1) / (thornCount + 1);
+                    const tx = x + (endX - x) * t;
+                    const ty = y + (endY - y) * t;
+                    drawThorn(tx, ty, angle);
+                }
+            }
+
+            // Draw leaves - check for alternating pattern
+            const alternateLeaves = genes['GP01'] === 1;
+            
+            for (let i = 1; i <= leafCount; i++) {
+                const t = i / (leafCount + 1);
+                const leafX = x + (endX - x) * t + (seededRandom() - 0.5) * 5;
+                const leafY = y + (endY - y) * t + (seededRandom() - 0.5) * 5;
+                
+                let leafAngle;
+                if (alternateLeaves) {
+                    // Leaves alternate sides randomly but deterministically
+                    const side = seededRandom() > 0.5 ? 1 : -1;
+                    leafAngle = angle + (side * 30) + (seededRandom() - 0.5) * 20;
+                } else {
+                    // Default: leaves alternate left-right in order
+                    leafAngle = angle + (i % 2 === 0 ? 30 : -30) + (seededRandom() - 0.5) * 20;
+                }
+                
+                const currentLeafSize = leafSize * (0.7 + seededRandom() * 0.6);
+                
+                const leafColor = useGradient ?
+                    createGradient(leafX, leafY - currentLeafSize, leafX, leafY, leafR, leafG, leafB) :
+                    `rgb(${Math.max(0, Math.min(255, leafR))}, ${Math.max(0, Math.min(255, leafG))}, ${Math.max(0, Math.min(255, leafB))})`;
+                
+                drawLeaf(leafX, leafY, leafAngle, currentLeafSize, leafColor, leafR, leafG, leafB);
+            }
+        }
+
+        function drawLeaf(x, y, angle, size, color, leafR, leafG, leafB) {
+            ctx.save();
+            ctx.translate(x, y);
+            
+            if (genes['LF08'] === 1) angle -= 20;
+            if (genes['EX20'] === 1) angle += Math.sin(animationTime * 0.3 + x * 0.01) * 5; // Gentle curl
+            
+            ctx.rotate((angle * Math.PI) / 180);
+            
+            ctx.fillStyle = color;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            
+            // Crystalline effect
+            if (genes['EX02'] === 1) {
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'rgba(200, 220, 255, 0.5)';
+            }
+
+            // Metallic sheen
+            if (genes['PT09'] === 1) {
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = 'rgba(255, 255, 200, 0.6)';
+            }
+            
+            // Determine leaf shape
+            const pointed = genes['LF03'] === 1;
+            const round = genes['LF04'] === 1;
+            const webbed = genes['EX12'] === 1;
+            const spiky = genes['EX19'] === 1;
+            
+            if (spiky) {
+                // Spiky leaves
+                ctx.beginPath();
+                const spikes = 6;
+                for (let i = 0; i < spikes; i++) {
+                    const a = (i / spikes) * Math.PI * 2 - Math.PI/2;
+                    const r = i % 2 === 0 ? size * 0.6 : size * 0.3;
+                    const px = size * 0.4 + Math.cos(a) * r;
+                    const py = -size * 0.4 + Math.sin(a) * r;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fill();
+            } else if (pointed) {
+                // Pointed leaf
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(size * 0.3, -size * 0.5);
+                ctx.lineTo(size, -size);
+                ctx.lineTo(size * 0.3, -size * 0.5);
+                ctx.lineTo(0, -size * 0.8);
+                ctx.closePath();
+                ctx.fill();
+            } else if (round) {
+                // Round leaf
+                ctx.beginPath();
+                ctx.arc(size * 0.4, -size * 0.4, size * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (webbed) {
+                // Webbed leaves
+                ctx.beginPath();
+                const points = 6;
+                for (let i = 0; i < points; i++) {
+                    const a = (i / points) * Math.PI * 2;
+                    const radius = size * 0.4 * (i % 2 === 0 ? 1 : 0.5);
+                    const px = size * 0.4 + Math.cos(a) * radius;
+                    const py = -size * 0.4 + Math.sin(a) * radius;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Oval leaf (default)
+                ctx.beginPath();
+                ctx.ellipse(size * 0.5, -size * 0.5, size * 0.4, size * 0.6, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.shadowBlur = 0;
+
+            // Pattern overlays
+            if (genes['LF05'] === 1 || genes['PT08'] === 1) { // Serrated/Speckled edge
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+            }
+
+            if (genes['SP06'] === 1) { // Variegated
+                ctx.fillStyle = 'rgba(255, 255, 200, 0.4)';
+                ctx.beginPath();
+                ctx.ellipse(size * 0.3, -size * 0.3, size * 0.2, size * 0.3, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (genes['EX13'] === 1) { // Spotted pattern
+                ctx.fillStyle = `rgba(${Math.max(0, leafR - 50)}, ${Math.max(0, leafG - 50)}, ${Math.max(0, leafB - 50)}, 0.6)`;
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.arc(seededRandom() * size * 0.6, -seededRandom() * size * 0.6, size * 0.1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            if (genes['PT01'] === 1) { // Striped leaves
+                ctx.strokeStyle = `rgba(${Math.max(0, leafR - 40)}, ${Math.max(0, leafG - 40)}, ${Math.max(0, leafB - 40)}, 0.4)`;
+                ctx.lineWidth = 1;
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.2 * i, -size * 0.8);
+                    ctx.lineTo(size * 0.2 * i, -size * 0.2);
+                    ctx.stroke();
+                }
+            }
+
+            if (genes['PT03'] === 1) { // Edge highlight
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+
+            if (genes['PT04'] === 1) { // Vein pattern
+                ctx.strokeStyle = `rgba(${Math.max(0, leafR - 30)}, ${Math.max(0, leafG - 30)}, ${Math.max(0, leafB - 30)}, 0.5)`;
+                ctx.lineWidth = 0.5;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(size * 0.5, -size * 0.5);
+                ctx.stroke();
+                for (let i = 0; i < 3; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(size * 0.5, -size * 0.5);
+                    ctx.lineTo(size * (0.3 + i * 0.1), -size * (0.2 + i * 0.15));
+                    ctx.stroke();
+                }
+            }
+
+            if (genes['PT07'] === 1) { // Dual-tone leaf
+                ctx.fillStyle = `rgba(${Math.min(255, leafR + 40)}, ${Math.min(255, leafG + 40)}, ${Math.min(255, leafB + 40)}, 0.5)`;
+                ctx.beginPath();
+                ctx.ellipse(size * 0.5, -size * 0.5, size * 0.2, size * 0.3, 0, 0, Math.PI);
+                ctx.fill();
+            }
+
+            if (genes['PT10'] === 1) { // Frosted tips
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.beginPath();
+                ctx.arc(size * 0.8, -size * 0.8, size * 0.15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (genes['MU02'] === 1) { // Split leaves
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(size * 0.5, -size * 0.5);
+                ctx.lineTo(size * 0.5, -size * 0.1);
+                ctx.stroke();
+            }
+
+            if (genes['SP04'] === 1) { // Fuzzy texture
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 0.5;
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(seededRandom() * size * 0.8, -seededRandom() * size * 0.8);
+                    ctx.lineTo(seededRandom() * size * 0.8, -seededRandom() * size * 0.8);
+                    ctx.stroke();
+                }
+            }
+            
+            ctx.restore();
+        }
+
+        function drawFlower(x, y, size, petals, flowerR, flowerG, flowerB, star, glowing, droopy) {
+            const flowerColor = `rgb(${flowerR}, ${flowerG}, ${flowerB})`;
+            const petalLength = size;
+            const angleStep = (Math.PI * 2) / petals;
+            
+            if (droopy) y += 5; // Droopy flowers hang lower
+            
+            // Draw petals
+            ctx.fillStyle = flowerColor;
+            for (let i = 0; i < petals; i++) {
+                const angle = angleStep * i + (seededRandom() - 0.5) * 0.2;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+                
+                if (star) {
+                    // Star-shaped petals
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(petalLength * 0.3, -petalLength * 0.2);
+                    ctx.lineTo(petalLength, 0);
+                    ctx.lineTo(petalLength * 0.3, petalLength * 0.2);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    // Round petals
+                    ctx.beginPath();
+                    ctx.ellipse(petalLength * 0.5, 0, petalLength * 0.4, petalLength * 0.25, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            }
+            
+            // Draw center
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.arc(x, y, size * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Glowing center (gentle pulse)
+            if (glowing) {
+                const glowIntensity = 0.4 + Math.sin(animationTime * 2) * 0.1;
+                ctx.shadowBlur = 15 * glowIntensity;
+                ctx.shadowColor = '#FFD700';
+                ctx.fillStyle = `rgba(255, 255, 150, ${glowIntensity})`;
+                ctx.beginPath();
+                ctx.arc(x, y, size * 0.25, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            // Add detail to center
+            ctx.fillStyle = '#FF8C00';
+            ctx.beginPath();
+            ctx.arc(x, y, size * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawRoots(x, y, width, bulbous, aerial) {
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = width * 0.5;
+            ctx.lineCap = 'round';
+
+            if (bulbous) {
+                // Draw bulbous base
+                ctx.fillStyle = '#8B7355';
+                ctx.beginPath();
+                ctx.ellipse(x, y + 10, width * 3, width * 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw roots spreading out
+            const rootCount = 3 + Math.floor(seededRandom() * 3);
+            for (let i = 0; i < rootCount; i++) {
+                const angle = -90 + (i / rootCount) * 180 - 90;
+                const rad = (angle * Math.PI) / 180;
+                const length = 20 + seededRandom() * 30;
+                
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                const endX = x + Math.cos(rad) * length;
+                const endY = y + Math.abs(Math.sin(rad)) * length;
+                ctx.lineTo(endX, endY);
+                ctx.stroke();
+            }
+
+            if (aerial) {
+                // Draw aerial roots
+                const aerialCount = 2 + Math.floor(seededRandom() * 2);
+                for (let i = 0; i < aerialCount; i++) {
+                    const startY = y - 40 - seededRandom() * 60;
+                    const offset = (seededRandom() - 0.5) * 40;
+                    ctx.beginPath();
+                    ctx.moveTo(x + offset, startY);
+                    ctx.lineTo(x + offset * 1.2, y);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        function drawThorn(x, y, branchAngle) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate((branchAngle * Math.PI) / 180);
+            
+            ctx.fillStyle = '#654321';
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(3, -8);
+            ctx.lineTo(6, 0);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        function drawFruit(x, y) {
+            const size = 4 + seededRandom() * 3;
+            ctx.fillStyle = genes['CL01'] === 1 ? '#DC143C' : '#8B008B';
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.beginPath();
+            ctx.arc(x - size * 0.3, y - size * 0.3, size * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Exotic drawing functions
+        function drawSpores(baseX, baseY, height) {
+            const sporeCount = 8;
+            for (let i = 0; i < sporeCount; i++) {
+                const sporeX = baseX + Math.sin(animationTime * 0.3 + i) * 30;
+                const sporeY = baseY - height + Math.cos(animationTime * 0.2 + i) * 40 - i * 10;
+                const alpha = 0.3 + Math.sin(animationTime + i) * 0.1;
+                
+                ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(sporeX, sporeY, 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Gentle glow
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = 'rgba(255, 255, 200, 0.3)';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function drawVines(baseX, baseY, height) {
+            const vineCount = 2;
+            for (let v = 0; v < vineCount; v++) {
+                ctx.strokeStyle = 'rgba(100, 150, 100, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                const startY = baseY - height * (0.3 + v * 0.2);
+                ctx.moveTo(baseX, startY);
+                
+                for (let i = 0; i < 15; i++) {
+                    const t = i / 15;
+                    const x = baseX + Math.sin(t * Math.PI * 3 + animationTime * 0.2 + v) * 25;
+                    const y = startY + t * 80;
+                    ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        function drawTrap(x, y) {
+            const size = 20;
+            const openAmount = 0.15 + Math.sin(animationTime * 0.5) * 0.1; // Gentle breathing
+            
+            ctx.save();
+            ctx.translate(x, y);
+            
+            // Upper jaw
+            ctx.fillStyle = '#8B0000';
+            ctx.beginPath();
+            ctx.ellipse(0, -size * openAmount, size, size * 0.8, 0, 0, Math.PI);
+            ctx.fill();
+            
+            // Lower jaw
+            ctx.beginPath();
+            ctx.ellipse(0, size * openAmount, size, size * 0.8, 0, Math.PI, Math.PI * 2);
+            ctx.fill();
+            
+            // Teeth
+            ctx.fillStyle = '#FFFFFF';
+            for (let i = -3; i <= 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * 5, -size * openAmount);
+                ctx.lineTo(i * 5 - 2, -size * openAmount + 5);
+                ctx.lineTo(i * 5 + 2, -size * openAmount + 5);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.moveTo(i * 5, size * openAmount);
+                ctx.lineTo(i * 5 - 2, size * openAmount - 5);
+                ctx.lineTo(i * 5 + 2, size * openAmount - 5);
+                ctx.closePath();
+                ctx.fill();
+            }
+            
+            ctx.restore();
+        }
+
+        function drawPods(baseX, baseY, height) {
+            const podCount = 3;
+            for (let i = 0; i < podCount; i++) {
+                const podX = baseX + (seededRandom() - 0.5) * 40;
+                const podY = baseY - height * (0.4 + seededRandom() * 0.4);
+                
+                ctx.fillStyle = '#9370DB';
+                ctx.beginPath();
+                ctx.ellipse(podX, podY, 8, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Highlight
+                ctx.fillStyle = 'rgba(200, 180, 255, 0.4)';
+                ctx.beginPath();
+                ctx.ellipse(podX - 3, podY - 5, 3, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawBioluminescence(baseX, baseY, height) {
+            const glowPoints = 12;
+            const pulseIntensity = 0.2 + Math.sin(animationTime) * 0.05; // Gentle pulse
+            
+            for (let i = 0; i < glowPoints; i++) {
+                const x = baseX + (seededRandom() - 0.5) * 80;
+                const y = baseY - seededRandom() * height;
+                
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, 15);
+                gradient.addColorStop(0, `rgba(100, 255, 200, ${pulseIntensity})`);
+                gradient.addColorStop(1, 'rgba(100, 255, 200, 0)');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(x, y, 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawFractalBranch(x, y, angle, length, depth, width, color, leafSize, leafCount, leafR, leafG, leafB, useGradient) {
+            if (depth === 0 || length < 10) return;
+            
+            const rad = (angle * Math.PI) / 180;
+            const endX = x + Math.cos(rad) * length;
+            const endY = y - Math.sin(rad) * length;
+            
+            drawStem(x, y, endX, endY, width, color);
+            
+            // Recursively draw smaller branches
+            drawFractalBranch(endX, endY, angle - 25, length * 0.7, depth - 1, width * 0.7, color, 
+                leafSize, leafCount, leafR, leafG, leafB, useGradient);
+            drawFractalBranch(endX, endY, angle + 25, length * 0.7, depth - 1, width * 0.7, color, 
+                leafSize, leafCount, leafR, leafG, leafB, useGradient);
+            
+            // Add a leaf at the end
+            if (depth === 1) {
+                const leafColor = useGradient ?
+                    createGradient(endX, endY - leafSize, endX, endY, leafR, leafG, leafB) :
+                    `rgb(${Math.max(0, Math.min(255, leafR))}, ${Math.max(0, Math.min(255, leafG))}, ${Math.max(0, Math.min(255, leafB))})`;
+                drawLeaf(endX, endY, angle, leafSize, leafColor, leafR, leafG, leafB);
+            }
+        }
+
+        // Initialize
+        initGenes();
+        createGeneControls();
+        drawPlant();
+        
+        // Animation toggle listener
+        document.getElementById('animationToggle').addEventListener('change', function(e) {
+            animationEnabled = e.target.checked;
+            drawPlant();
+        });
+    </script>
+</body>
+</html>
