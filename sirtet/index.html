@@ -218,7 +218,7 @@ canvas.vs-board{border:1px solid var(--border2);image-rendering:pixelated;displa
 
 <!-- MENU -->
 <div id="screen-menu" class="screen active">
-  <div class="menu-logo">sirt<span class="hi">e</span><span class="hi">T</span></div>
+  <div class="menu-logo">sirte<span class="hi">T</span></div>
   <div class="menu-sub">A FALLING BLOCK GAME</div>
   <div class="menu-btns">
     <button class="menu-btn" onclick="showScreen('screen-setup')"><span>▶</span> Solo Play</button>
@@ -1006,7 +1006,13 @@ function tryRotate(ccw=false) {
 }
 function tryRotate180() {
   const ns = rot180(piece.shape);
-  if (!collide(ns,piece.x,piece.y,grid)) { piece.shape=ns; piece.rot=(piece.rot+2)%4; onMove(); }
+  // Try plain first, then basic kicks for 180
+  const kicks180 = [[0,0],[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,-1],[-1,1],[1,1]];
+  for (const [dx,dy] of kicks180) {
+    if (!collide(ns, piece.x+dx, piece.y-dy, grid)) {
+      piece.shape=ns; piece.rot=(piece.rot+2)%4; piece.x+=dx; piece.y-=dy; onMove(); return;
+    }
+  }
 }
 
 function doLock() {
@@ -1045,7 +1051,9 @@ function completeSprint() {
 }
 function spawnNext() {
   piece=mkPiece(soloDequeue());
-  if (collide(piece.shape,piece.x,piece.y,grid) && cfg.mode!=='zen') triggerGameOver();
+  dropAcc=0;
+  if (collide(piece.shape,piece.x,piece.y,grid) && cfg.mode!=='zen') { triggerGameOver(); return; }
+  onMove(); // schedule lock immediately if spawned grounded
 }
 function doHold() {
   if (cfg.holdMode==='none') return;
@@ -1129,7 +1137,10 @@ function loop(ts) {
   if (!running) return;
   if (!paused) {
     const dt=Math.min(ts-lastTime,100); lastTime=ts;
-    if (!isGrounded()) { dropAcc+=dt; if(dropAcc>getInterval()){dropAcc=0;piece.y++;} }
+    if (!isGrounded()) {
+      dropAcc+=dt;
+      if(dropAcc>getInterval()){dropAcc=0; piece.y++; onMove();}
+    }
     drawBoard(); drawPreviews(); drawHold();
   }
   rafId=requestAnimationFrame(loop);
@@ -1416,7 +1427,13 @@ function vsTryRotate(ccw=false){
     if(!collide(ns,vsPiece.x+dx,vsPiece.y-dy,vsGrid)){vsPiece.shape=ns;vsPiece.rot=nr;vsPiece.x+=dx;vsPiece.y-=dy;vsOnMove();pushBoard();return;}
   }
 }
-function vsTryRotate180(){const ns=rot180(vsPiece.shape);if(!collide(ns,vsPiece.x,vsPiece.y,vsGrid)){vsPiece.shape=ns;vsPiece.rot=(vsPiece.rot+2)%4;vsOnMove();pushBoard();}}
+function vsTryRotate180(){
+  const ns=rot180(vsPiece.shape);
+  const kicks180=[[0,0],[0,-1],[0,1],[-1,0],[1,0],[-1,-1],[1,-1],[-1,1],[1,1]];
+  for(const [dx,dy] of kicks180){
+    if(!collide(ns,vsPiece.x+dx,vsPiece.y-dy,vsGrid)){vsPiece.shape=ns;vsPiece.rot=(vsPiece.rot+2)%4;vsPiece.x+=dx;vsPiece.y-=dy;vsOnMove();pushBoard();return;}
+  }
+}
 function vsMoveH(dx){if(!vsRunLoop||!vsPiece)return;if(!collide(vsPiece.shape,vsPiece.x+dx,vsPiece.y,vsGrid)){vsPiece.x+=dx;vsOnMove();pushBoard();}}
 function vsHardDrop(){vsCancelLock();vsScore+=2*(vsGhostY()-vsPiece.y);vsPiece.y=vsGhostY();vsDoLock();}
 function vsDoHold(){
@@ -1429,8 +1446,10 @@ function vsDoHold(){
 }
 function vsSpawnNext(){
   vsPiece=mkPiece(vsDequeue());
-  if(collide(vsPiece.shape,vsPiece.x,vsPiece.y,vsGrid)){vsGameOver();}
+  vsDropAcc=0;
+  if(collide(vsPiece.shape,vsPiece.x,vsPiece.y,vsGrid)){vsGameOver();return;}
   buildVsPreviews();
+  vsOnMove();
 }
 function vsDoLock(){
   for(let r=0;r<vsPiece.shape.length;r++)for(let c=0;c<vsPiece.shape[r].length;c++){
@@ -1545,7 +1564,7 @@ function getVsInterval(){return Math.max(33,((0.8-((vsLevel-1)*0.007))**(vsLevel
 function vsLoop(ts){
   if(!vsRunLoop)return;
   const dt=Math.min(ts-vsLastTime,100);vsLastTime=ts;
-  if(vsPiece&&!vsIsGrounded()){vsDropAcc+=dt;if(vsDropAcc>getVsInterval()){vsDropAcc=0;vsPiece.y++;pushBoard();}}
+  if(vsPiece&&!vsIsGrounded()){vsDropAcc+=dt;if(vsDropAcc>getVsInterval()){vsDropAcc=0;vsPiece.y++;vsOnMove();pushBoard();}}
   drawVsBoard();drawOppBoard();drawVsPreviews();drawOppPreviews();drawVsHold();
   vsRafId=requestAnimationFrame(vsLoop);
 }
