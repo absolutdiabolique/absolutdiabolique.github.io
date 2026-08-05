@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADE v2</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --panel:#ffffff;
+    --border:#e2e2e2;
+    --text:#111111;
+    --muted:#6b6b6b;
+    --accent:#5b4fff;
+    --danger:#d13b53;
+    --ok:#1a8f6b;
+    --mono:'SF Mono',Consolas,'Roboto Mono',monospace;
+  }
+  html[data-theme="dark"]{
+    --bg:#101114;
+    --panel:#101114;
+    --border:#2a2b30;
+    --text:#eaeaea;
+    --muted:#8a8b90;
+    --accent:#8b7dff;
+    --danger:#ff6b7f;
+    --ok:#3ddba6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:48px 20px 64px;}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;}
+  h1{font-size:1.05rem;margin:0;font-weight:600;letter-spacing:0.2px;}
+  .theme-toggle{
+    background:none;border:1px solid var(--border);color:var(--muted);
+    border-radius:7px;padding:6px 10px;font-size:0.78rem;cursor:pointer;
+  }
+  .theme-toggle:hover{color:var(--text);border-color:var(--muted);}
+  .tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);}
+  .tab{
+    padding:8px 4px;margin-right:20px;color:var(--muted);cursor:pointer;
+    font-size:0.88rem;font-weight:500;border-bottom:2px solid transparent;
+  }
+  .tab.active{color:var(--text);border-bottom-color:var(--accent);}
+  label{display:block;font-size:0.76rem;color:var(--muted);margin-bottom:5px;}
+  textarea,input{
+    width:100%;background:transparent;border:1px solid var(--border);border-radius:8px;
+    color:var(--text);padding:9px 10px;font-size:0.88rem;font-family:var(--mono);
+    resize:vertical;outline:none;
+  }
+  textarea:focus,input:focus{border-color:var(--accent);}
+  textarea{min-height:90px;}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+  .field{margin-bottom:12px;}
+  button.primary{
+    width:100%;padding:10px;border-radius:8px;border:1px solid var(--accent);cursor:pointer;
+    background:var(--accent);color:#fff;font-weight:600;font-size:0.88rem;
+  }
+  button.primary:disabled{opacity:0.5;cursor:not-allowed;}
+  .output-wrap{position:relative;margin-top:14px;}
+  .output{
+    width:100%;min-height:80px;background:transparent;border:1px solid var(--border);
+    border-radius:8px;padding:10px;font-family:var(--mono);font-size:0.8rem;
+    word-break:break-all;white-space:pre-wrap;color:var(--text);
+  }
+  .output.error{color:var(--danger);}
+  .copy-btn{
+    position:absolute;top:6px;right:6px;background:var(--bg);border:1px solid var(--border);
+    color:var(--muted);border-radius:6px;padding:4px 8px;font-size:0.72rem;cursor:pointer;
+  }
+  .copy-btn:hover{color:var(--text);}
+  .status{margin-top:10px;font-size:0.8rem;padding:8px 10px;border-radius:7px;display:none;border:1px solid var(--border);}
+  .status.show{display:block;}
+  .status.ok{color:var(--ok);}
+  .status.fail{color:var(--danger);}
+  .panel-hidden{display:none;}
+  .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;font-size:0.74rem;color:var(--muted);}
+  .meta-grid div span{color:var(--text);font-family:var(--mono);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ADE v2</h1>
+    <button class="theme-toggle" id="themeToggle">Dark</button>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" id="tabEncrypt">Encrypt</div>
+    <div class="tab" id="tabDecrypt">Decrypt</div>
+  </div>
+
+  <!-- ENCRYPT PANEL -->
+  <div id="panelEncrypt">
+    <div class="field">
+      <label>Plaintext</label>
+      <textarea id="ptInput" placeholder="Type the message to encrypt...">Hello, World!</textarea>
+    </div>
+    <div class="row">
+      <div class="field" style="margin-bottom:0;">
+        <label>Key1 (string)</label>
+        <input id="key1Enc" type="text" value="correct-horse-battery">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Key2 (integer)</label>
+        <input id="key2Enc" type="number" value="42">
+      </div>
+    </div>
+    <button class="primary" id="btnEncrypt">Encrypt</button>
+    <div class="output-wrap">
+      <button class="copy-btn" id="copyEnc">Copy</button>
+      <div class="output" id="encOutput">Encoded ciphertext will appear here.</div>
+    </div>
+    <div class="meta-grid" id="encMeta"></div>
+  </div>
+
+  <!-- DECRYPT PANEL -->
+  <div class="panel-hidden" id="panelDecrypt">
+    <div class="field">
+      <label>Encoded ciphertext</label>
+      <textarea id="ctInput" placeholder="Paste ADE v2 encoded text here..."></textarea>
+    </div>
+    <div class="row">
+      <div class="field" style="margin-bottom:0;">
+        <label>Key1 (string)</label>
+        <input id="key1Dec" type="text" value="correct-horse-battery">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Key2 (integer)</label>
+        <input id="key2Dec" type="number" value="42">
+      </div>
+    </div>
+    <button class="primary" id="btnDecrypt">Decrypt</button>
+    <div class="status" id="decStatus"></div>
+    <div class="output-wrap">
+      <button class="copy-btn" id="copyDec">Copy</button>
+      <div class="output" id="decOutput">Recovered plaintext will appear here.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // Point this at wherever server.js is actually running. It's used with an
+  // absolute URL so this same file works whether it's served by that same
+  // Node server or hosted separately (e.g. on GitHub Pages).
+  const API_BASE = "https://ade-encryption-1.onrender.com";
+
+  const root = document.documentElement;
+  const themeToggle = document.getElementById('themeToggle');
+  function applyTheme(theme){
+    root.setAttribute('data-theme', theme);
+    themeToggle.textContent = theme === 'dark' ? 'Light' : 'Dark';
+  }
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(prefersDark ? 'dark' : 'light');
+  themeToggle.addEventListener('click', () => {
+    const current = root.getAttribute('data-theme');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  });
+
+  const tabEncrypt = document.getElementById('tabEncrypt');
+  const tabDecrypt = document.getElementById('tabDecrypt');
+  const panelEncrypt = document.getElementById('panelEncrypt');
+  const panelDecrypt = document.getElementById('panelDecrypt');
+
+  tabEncrypt.addEventListener('click', () => {
+    tabEncrypt.classList.add('active'); tabDecrypt.classList.remove('active');
+    panelEncrypt.classList.remove('panel-hidden'); panelDecrypt.classList.add('panel-hidden');
+  });
+  tabDecrypt.addEventListener('click', () => {
+    tabDecrypt.classList.add('active'); tabEncrypt.classList.remove('active');
+    panelDecrypt.classList.remove('panel-hidden'); panelEncrypt.classList.add('panel-hidden');
+  });
+
+  async function postJson(url, payload){
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    return data;
+  }
+
+  const btnEncrypt = document.getElementById('btnEncrypt');
+  const encOutput = document.getElementById('encOutput');
+  const encMeta = document.getElementById('encMeta');
+
+  btnEncrypt.addEventListener('click', async () => {
+    const plaintext = document.getElementById('ptInput').value;
+    const key1 = document.getElementById('key1Enc').value;
+    const key2raw = document.getElementById('key2Enc').value;
+    const key2 = parseInt(key2raw, 10);
+
+    if(!key1){ encOutput.textContent = 'Key1 cannot be empty.'; encOutput.classList.add('error'); return; }
+    if(Number.isNaN(key2)){ encOutput.textContent = 'Key2 must be an integer.'; encOutput.classList.add('error'); return; }
+
+    btnEncrypt.disabled = true; btnEncrypt.textContent = 'Encrypting…';
+    encOutput.classList.remove('error');
+    try{
+      const result = await postJson(`${API_BASE}/api/encrypt`, { plaintext, key1, key2 });
+      encOutput.textContent = result.encoded;
+      encMeta.innerHTML =
+        `<div>Nonce (hex): <span>${result.nonceHex}</span></div>` +
+        `<div>Tag (hex): <span>${result.tagHex}</span></div>` +
+        `<div>Plaintext length: <span>${result.plaintextLength} bytes</span></div>` +
+        `<div>Encoded length: <span>${result.encodedLength} chars</span></div>`;
+    }catch(e){
+      encOutput.textContent = 'Error: ' + e.message;
+      encOutput.classList.add('error');
+      encMeta.innerHTML = '';
+    }finally{
+      btnEncrypt.disabled = false; btnEncrypt.textContent = 'Encrypt';
+    }
+  });
+
+  const btnDecrypt = document.getElementById('btnDecrypt');
+  const decOutput = document.getElementById('decOutput');
+  const decStatus = document.getElementById('decStatus');
+
+  btnDecrypt.addEventListener('click', async () => {
+    const encoded = document.getElementById('ctInput').value.trim();
+    const key1 = document.getElementById('key1Dec').value;
+    const key2raw = document.getElementById('key2Dec').value;
+    const key2 = parseInt(key2raw, 10);
+
+    decStatus.className = 'status';
+    if(!key1){ decOutput.textContent = 'Key1 cannot be empty.'; decOutput.classList.add('error'); return; }
+    if(Number.isNaN(key2)){ decOutput.textContent = 'Key2 must be an integer.'; decOutput.classList.add('error'); return; }
+    if(!encoded){ decOutput.textContent = 'Paste an encoded message first.'; decOutput.classList.add('error'); return; }
+
+    btnDecrypt.disabled = true; btnDecrypt.textContent = 'Decrypting…';
+    decOutput.classList.remove('error');
+    try{
+      const result = await postJson(`${API_BASE}/api/decrypt`, { encoded, key1, key2 });
+      decOutput.textContent = result.plaintext;
+      decStatus.textContent = 'HMAC verified — integrity OK.';
+      decStatus.className = 'status show ok';
+    }catch(e){
+      decOutput.textContent = '';
+      decStatus.textContent = e.message;
+      decStatus.className = 'status show fail';
+    }finally{
+      btnDecrypt.disabled = false; btnDecrypt.textContent = 'Decrypt';
+    }
+  });
+
+  function wireCopy(btnId, sourceEl){
+    document.getElementById(btnId).addEventListener('click', async () => {
+      const text = sourceEl.textContent;
+      if(!text) return;
+      try{
+        await navigator.clipboard.writeText(text);
+        const btn = document.getElementById(btnId);
+        const old = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = old; }, 1200);
+      }catch(e){ /* clipboard may be unavailable in some contexts */ }
+    });
+  }
+  wireCopy('copyEnc', encOutput);
+  wireCopy('copyDec', decOutput);
+})();
+</script>
+</body>
+</html>
