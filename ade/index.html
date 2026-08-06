@@ -49,12 +49,12 @@
   }
   .tab.active{color:var(--text);border-bottom-color:var(--accent);}
   label{display:block;font-size:0.76rem;color:var(--muted);margin-bottom:5px;}
-  textarea,input{
+  textarea,input,select{
     width:100%;background:transparent;border:1px solid var(--border);border-radius:8px;
     color:var(--text);padding:9px 10px;font-size:0.88rem;font-family:var(--mono);
     resize:vertical;outline:none;
   }
-  textarea:focus,input:focus{border-color:var(--accent);}
+  textarea:focus,input:focus,select:focus{border-color:var(--accent);}
   textarea{min-height:90px;}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
   .field{margin-bottom:12px;}
@@ -112,6 +112,13 @@
         <input id="key2Enc" type="number" value="42">
       </div>
     </div>
+    <div class="field">
+      <label>Algorithm</label>
+      <select id="algoEnc">
+        <option value="adev2">ADE v2 — 12-round SPN</option>
+        <option value="hydra">Hydra — key-selected multi-head cipher</option>
+      </select>
+    </div>
     <button class="primary" id="btnEncrypt">Encrypt</button>
     <div class="output-wrap">
       <button class="copy-btn" id="copyEnc">Copy</button>
@@ -135,6 +142,13 @@
         <label>Key2 (integer)</label>
         <input id="key2Dec" type="number" value="42">
       </div>
+    </div>
+    <div class="field">
+      <label>Algorithm</label>
+      <select id="algoDec">
+        <option value="adev2">ADE v2 — 12-round SPN</option>
+        <option value="hydra">Hydra — key-selected multi-head cipher</option>
+      </select>
     </div>
     <button class="primary" id="btnDecrypt">Decrypt</button>
     <div class="status" id="decStatus"></div>
@@ -201,6 +215,7 @@
     const key1 = document.getElementById('key1Enc').value;
     const key2raw = document.getElementById('key2Enc').value;
     const key2 = parseInt(key2raw, 10);
+    const algorithm = document.getElementById('algoEnc').value;
 
     if(!key1){ encOutput.textContent = 'Key1 cannot be empty.'; encOutput.classList.add('error'); return; }
     if(Number.isNaN(key2)){ encOutput.textContent = 'Key2 must be an integer.'; encOutput.classList.add('error'); return; }
@@ -208,13 +223,24 @@
     btnEncrypt.disabled = true; btnEncrypt.textContent = 'Encrypting…';
     encOutput.classList.remove('error');
     try{
-      const result = await postJson(`${API_BASE}/api/encrypt`, { plaintext, key1, key2 });
+      const result = await postJson(`${API_BASE}/api/encrypt`, { plaintext, key1, key2, algorithm });
       encOutput.textContent = result.encoded;
-      encMeta.innerHTML =
-        `<div>Nonce (hex): <span>${result.nonceHex}</span></div>` +
-        `<div>Tag (hex): <span>${result.tagHex}</span></div>` +
-        `<div>Plaintext length: <span>${result.plaintextLength} bytes</span></div>` +
-        `<div>Encoded length: <span>${result.encodedLength} chars</span></div>`;
+      const rows = [
+        `<div>Algorithm: <span>${result.algorithm}</span></div>`,
+        `<div>Nonce (hex): <span>${result.nonceHex}</span></div>`,
+        `<div>Tag (hex): <span>${result.tagHex}</span></div>`,
+        `<div>Plaintext length: <span>${result.plaintextLength} bytes</span></div>`
+      ];
+      if(result.encodedLength !== undefined){
+        rows.push(`<div>Encoded length: <span>${result.encodedLength} chars</span></div>`);
+      }
+      if(result.chunkCount !== undefined){
+        rows.push(`<div>Chunks: <span>${result.chunkCount}</span></div>`);
+      }
+      if(result.headSequence !== undefined){
+        rows.push(`<div style="grid-column:1/-1;">Head sequence: <span>${result.headSequence.join(' → ')}</span></div>`);
+      }
+      encMeta.innerHTML = rows.join('');
     }catch(e){
       encOutput.textContent = 'Error: ' + e.message;
       encOutput.classList.add('error');
@@ -233,6 +259,7 @@
     const key1 = document.getElementById('key1Dec').value;
     const key2raw = document.getElementById('key2Dec').value;
     const key2 = parseInt(key2raw, 10);
+    const algorithm = document.getElementById('algoDec').value;
 
     decStatus.className = 'status';
     if(!key1){ decOutput.textContent = 'Key1 cannot be empty.'; decOutput.classList.add('error'); return; }
@@ -242,9 +269,9 @@
     btnDecrypt.disabled = true; btnDecrypt.textContent = 'Decrypting…';
     decOutput.classList.remove('error');
     try{
-      const result = await postJson(`${API_BASE}/api/decrypt`, { encoded, key1, key2 });
+      const result = await postJson(`${API_BASE}/api/decrypt`, { encoded, key1, key2, algorithm });
       decOutput.textContent = result.plaintext;
-      decStatus.textContent = 'HMAC verified — integrity OK.';
+      decStatus.textContent = `HMAC verified (${result.algorithm}) — integrity OK.`;
       decStatus.className = 'status show ok';
     }catch(e){
       decOutput.textContent = '';
